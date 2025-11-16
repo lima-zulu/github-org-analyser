@@ -1,0 +1,20 @@
+{
+  "thresholds": {
+    "inactiveRepoMonths": 12,
+    "staleBranchDays": 90,
+    "oldPRDays": 60
+  },
+  "displayLimits": {
+    "maxInactiveRepos": 20,
+    "maxStaleBranchRepos": 30,
+    "maxOldPRRepos": 30,
+    "maxUnprotectedRepos": 20,
+    "maxNoAdminRepos": 20,
+    "maxOutsideCollaborators": 50,
+    "maxInstalledApps": 50,
+    "branchCountWarningThreshold": 50
+  },
+  "cache": {
+    "ttlHours": 24
+  }
+}
