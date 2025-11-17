@@ -216,7 +216,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
 
   if (!apiService || !orgName) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
         <Alert severity="info">Please enter a token and select an organisation to view data.</Alert>
       </Box>
     );

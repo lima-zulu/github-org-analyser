@@ -1,16 +1,62 @@
-# React + Vite
+# GitHub Organisation Analyser
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based web application for analysing GitHub organisations to identify security, governance, and maintenance issues.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This tool provides insights into your GitHub organisation across multiple dimensions:
+- **Security & Governance** - Organisation admins, installed apps, outside collaborators, branch protection, delegated repository ownership
+- **Cleanup Opportunities** - Stale branches, old pull requests
+- **Repository Health** - Inactive repositories, forked repositories, repository activity patterns
 
-## React Compiler
+The application uses GitHub's REST API with fine-grained Personal Access Tokens (PAT) and caches results in localStorage for performance.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the ESLint configuration
+- **React 19.2** with hooks
+- **Vite** for build tooling and dev server
+- **Material UI (MUI)** for components and styling
+- **GitHub REST API** v3 with fine-grained PAT authentication
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Quick Start
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Run development server:**
+   ```bash
+   npm run dev
+   ```
+
+3. **Generate a GitHub fine-grained PAT:**
+   - Navigate to GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
+   - Create token with Organisation permissions:
+     - **Administration:** Read-only (for installed apps)
+     - **Members:** Read-only (for org members/admins)
+     - **Metadata:** Read-only (mandatory)
+   - Repository permissions:
+     - **Administration:** Read-only (for branch protection)
+     - **Contents:** Read-only
+     - **Metadata:** Read-only (mandatory)
+     - **Pull requests:** Read-only
+
+4. **Use the app:**
+   - Enter your PAT in the application
+   - Select an organisation
+   - Navigate through the analysis tabs
+
+## Configuration
+
+Edit `src/config.json` to adjust:
+- Display limits (max items shown per section)
+- Cache TTL (default 24 hours)
+- Thresholds (stale branch days, old PR days, etc.)
+
+## Development Notes
+
+- API calls are cached in localStorage by org name and tab identifier
+- Progress indicators show current repository being processed for long-running operations
+- The app filters out archived and forked repositories from most analysis (forked repos have their own dedicated tab)
+- External collaborators and outside collaborators are fetched per-repository due to API limitations

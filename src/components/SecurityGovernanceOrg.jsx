@@ -18,6 +18,8 @@ import {
   Card,
   CardContent,
   Grid,
+  Avatar,
+  Chip,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import config from '../config.json';
@@ -63,10 +65,36 @@ function SecurityGovernanceOrg({ apiService, orgName, isActive }) {
       setOrgData(org);
 
       // Get org admins (Feature 9)
-      const admins = await apiService.getOrgAdmins(orgName);
+      const adminsList = await apiService.getOrgAdmins(orgName);
+
+      // Fetch full details for each admin to get names
+      const adminsWithDetails = await Promise.all(
+        adminsList.map(async (admin) => {
+          const fullDetails = await apiService.getUser(admin.login);
+          return fullDetails || admin;
+        })
+      );
 
       // Get installed apps (Feature 7)
       const apps = await apiService.getOrgInstalledApps(orgName);
+
+      // Fetch full details for each app to get owner information
+      const appsWithOwner = await Promise.all(
+        apps.map(async (app) => {
+          const appDetails = await apiService.getAppBySlug(app.app_slug);
+
+          // If app details fetch fails (404), it's likely a private internal app
+          // Use the installation account as the owner (where it's installed)
+          const ownerLogin = appDetails?.owner?.login || app.account?.login || null;
+          const ownerType = appDetails?.owner?.type || app.account?.type || null;
+
+          return {
+            ...app,
+            ownerLogin,
+            ownerType
+          };
+        })
+      );
 
       // Get outside collaborators (Feature 8)
       const outsideCollabs = await apiService.getOutsideCollaborators(orgName);
@@ -96,8 +124,12 @@ function SecurityGovernanceOrg({ apiService, orgName, isActive }) {
 
       const totalOutsideCollabs = collabsWithRepos.length;
       const outsideCollaborators = collabsWithRepos.slice(0, config.displayLimits.maxOutsideCollaborators);
-      const totalApps = apps.length;
-      const installedApps = apps.slice(0, config.displayLimits.maxInstalledApps);
+
+      // Sort apps by name
+      appsWithOwner.sort((a, b) => (a.app_slug || '').localeCompare(b.app_slug || ''));
+
+      const totalApps = appsWithOwner.length;
+      const installedApps = appsWithOwner.slice(0, config.displayLimits.maxInstalledApps);
       const unusedSeats = org.plan ? {
         total: org.plan.seats || 0,
         filled: org.plan.filled_seats || 0,
@@ -111,11 +143,13 @@ function SecurityGovernanceOrg({ apiService, orgName, isActive }) {
       setUnusedSeats(unusedSeats);
       setHasLoaded(true);
 
+      setOrgAdmins(adminsWithDetails);
+
       // Save to cache
       saveToCache(orgName, 'security-org', {
         orgData: org,
         unusedSeats,
-        orgAdmins: admins,
+        orgAdmins: adminsWithDetails,
         installedApps,
         outsideCollaborators,
         totalApps,
@@ -143,7 +177,7 @@ function SecurityGovernanceOrg({ apiService, orgName, isActive }) {
 
   if (!apiService || !orgName) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
         <Alert severity="info">Please enter a token and select an organisation to view data.</Alert>
       </Box>
     );
@@ -151,9 +185,9 @@ function SecurityGovernanceOrg({ apiService, orgName, isActive }) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 2 }}>
         <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>
+        <Typography variant="body1">
           Loading organisation data...
         </Typography>
       </Box>
@@ -209,16 +243,30 @@ function SecurityGovernanceOrg({ apiService, orgName, isActive }) {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Username</TableCell>
+                  <TableCell>User</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {orgAdmins.map((admin) => (
                   <TableRow key={admin.login}>
                     <TableCell>
-                      <Link href={admin.html_url} target="_blank" rel="noopener">
-                        {admin.login}
-                      </Link>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar
+                          src={admin.avatar_url}
+                          alt={admin.login}
+                          sx={{ width: 40, height: 40 }}
+                        />
+                        <Box>
+                          <Link href={admin.html_url} target="_blank" rel="noopener">
+                            {admin.login}
+                          </Link>
+                          {admin.name && (
+                            <Typography variant="caption" display="block" color="text.secondary">
+                              {admin.name}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -252,26 +300,69 @@ function SecurityGovernanceOrg({ apiService, orgName, isActive }) {
               <TableHead>
                 <TableRow>
                   <TableCell>App Name</TableCell>
+                  <TableCell>Owner</TableCell>
+                  <TableCell>Type</TableCell>
                   <TableCell>Installed Date</TableCell>
                   <TableCell>Repository Access</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {installedApps.map((app) => (
-                  <TableRow key={app.id}>
-                    <TableCell>
-                      <Link href={app.html_url} target="_blank" rel="noopener">
-                        {app.app_slug || 'Unknown App'}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{formatDate(app.created_at)}</TableCell>
-                    <TableCell>
-                      {app.repository_selection === 'all'
-                        ? 'All repositories'
-                        : `${app.repositories?.length || 0} selected repositories`}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {installedApps.map((app) => {
+                  const isExternal = app.ownerLogin && app.ownerLogin !== orgName;
+                  const isInternal = app.ownerLogin && app.ownerLogin === orgName;
+
+                  return (
+                    <TableRow key={app.id}>
+                      <TableCell>
+                        <Link href={app.html_url} target="_blank" rel="noopener">
+                          {app.app_slug || 'Unknown App'}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {app.ownerLogin ? (
+                          <Link
+                            href={`https://github.com/${app.ownerLogin}`}
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            {app.ownerLogin}
+                          </Link>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            Unknown
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isInternal && (
+                          <Chip
+                            label="Internal"
+                            size="small"
+                            color="success"
+                          />
+                        )}
+                        {isExternal && (
+                          <Chip
+                            label="External"
+                            size="small"
+                            color="warning"
+                          />
+                        )}
+                        {!isInternal && !isExternal && (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatDate(app.created_at)}</TableCell>
+                      <TableCell>
+                        {app.repository_selection === 'all'
+                          ? 'All repositories'
+                          : 'Selected repositories'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
