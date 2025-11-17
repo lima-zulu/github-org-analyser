@@ -207,6 +207,17 @@ class GitHubApiService {
   }
 
   /**
+   * Get app details by slug
+   */
+  async getAppBySlug(slug) {
+    try {
+      return await this.get(`/apps/${slug}`);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
    * Get all installed apps for an organization
    */
   async getOrgInstalledApps(org) {
@@ -252,6 +263,17 @@ class GitHubApiService {
     // Note: This requires checking each repo's collaborators
     // This is done in the component logic to avoid redundant API calls
     return [];
+  }
+
+  /**
+   * Get user details by username
+   */
+  async getUser(username) {
+    try {
+      return await this.get(`/users/${username}`);
+    } catch (error) {
+      return null;
+    }
   }
 
   /**
