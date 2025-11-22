@@ -5,6 +5,10 @@
     "oldPRDays": 60,
     "branchCountWarning": 50
   },
+  "billing": {
+    "pricePerUserMonth": 4,
+    "includedActionsMinutes": 3000
+  },
   "cache": {
     "ttlHours": 24
   }

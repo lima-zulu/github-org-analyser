@@ -31,8 +31,7 @@ import CleanupNeeded from './components/CleanupNeeded';
 import GovernanceRepo from './components/GovernanceRepo';
 import GovernanceOrg from './components/GovernanceOrg';
 import Costs from './components/Costs';
-import SetupInstructions from './components/SetupInstructions';
-import Info from './components/Info';
+import FAQ from './components/FAQ';
 
 const TOKEN_STORAGE_KEY = 'github_token';
 const THEME_STORAGE_KEY = 'theme_mode';
@@ -236,7 +235,7 @@ function App() {
 
           {!token && (
             <Alert severity="info" sx={{ mt: 2 }}>
-              Enter your GitHub Personal Access Token to get started. See the "Setup Instructions" tab for help creating a token.
+              Enter your GitHub Personal Access Token to get started. See the FAQ tab for help creating a token.
             </Alert>
           )}
 
@@ -250,34 +249,30 @@ function App() {
         {/* Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: 1400, mx: 'auto' }}>
           <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
-            <Tab label="Setup" />
-            <Tab label="Info" />
             <Tab label="Cleanup" />
             <Tab label="Governance (Repo)" />
             <Tab label="Governance (Org)" />
             <Tab label="Costs" />
+            <Tab label="FAQ" />
           </Tabs>
         </Box>
 
         {/* Tab Content */}
         <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
           <Box sx={{ display: activeTab === 0 ? 'block' : 'none' }}>
-            <SetupInstructions />
+            <CleanupNeeded apiService={apiService} orgName={selectedOrg} isActive={activeTab === 0} />
           </Box>
           <Box sx={{ display: activeTab === 1 ? 'block' : 'none' }}>
-            <Info />
+            <GovernanceRepo apiService={apiService} orgName={selectedOrg} isActive={activeTab === 1} />
           </Box>
           <Box sx={{ display: activeTab === 2 ? 'block' : 'none' }}>
-            <CleanupNeeded apiService={apiService} orgName={selectedOrg} isActive={activeTab === 2} />
+            <GovernanceOrg apiService={apiService} orgName={selectedOrg} isActive={activeTab === 2} />
           </Box>
           <Box sx={{ display: activeTab === 3 ? 'block' : 'none' }}>
-            <GovernanceRepo apiService={apiService} orgName={selectedOrg} isActive={activeTab === 3} />
+            <Costs apiService={apiService} orgName={selectedOrg} isActive={activeTab === 3} />
           </Box>
           <Box sx={{ display: activeTab === 4 ? 'block' : 'none' }}>
-            <GovernanceOrg apiService={apiService} orgName={selectedOrg} isActive={activeTab === 4} />
-          </Box>
-          <Box sx={{ display: activeTab === 5 ? 'block' : 'none' }}>
-            <Costs apiService={apiService} orgName={selectedOrg} isActive={activeTab === 5} />
+            <FAQ />
           </Box>
         </Box>
 

@@ -380,40 +380,45 @@ class GitHubApiService {
   }
 
   // ============================================
+  // SECURITY API METHODS
+  // ============================================
+
+  /**
+   * Get open Dependabot alerts for a repository
+   * Returns array of open vulnerability alerts
+   * Note: Dependabot API uses cursor pagination, not page-based
+   */
+  async getDependabotAlerts(owner, repo, state = 'open') {
+    try {
+      // Fetch up to 100 alerts (API max per request)
+      // Most repos won't have more than 100 open alerts
+      const alerts = await this.get(`/repos/${owner}/${repo}/dependabot/alerts`, {
+        state,
+        per_page: 100
+      });
+
+      return Array.isArray(alerts) ? alerts : [];
+    } catch (error) {
+      // Return empty array if no access or no alerts
+      return [];
+    }
+  }
+
+  // ============================================
   // BILLING API METHODS
   // ============================================
 
   /**
-   * Get GitHub Actions billing for an organization
-   * Returns minutes used by OS and included minutes
+   * Get billing usage for an organization (new billing platform)
+   * Returns detailed usage data for all products
    */
-  async getActionsBilling(org) {
+  async getBillingUsageDetails(org, options = {}) {
     try {
-      return await this.get(`/orgs/${org}/settings/billing/actions`);
-    } catch (error) {
-      return null;
-    }
-  }
-
-  /**
-   * Get GitHub Packages billing for an organization
-   * Returns storage and bandwidth usage
-   */
-  async getPackagesBilling(org) {
-    try {
-      return await this.get(`/orgs/${org}/settings/billing/packages`);
-    } catch (error) {
-      return null;
-    }
-  }
-
-  /**
-   * Get shared storage billing for an organization
-   * Returns combined Actions and Packages storage
-   */
-  async getSharedStorageBilling(org) {
-    try {
-      return await this.get(`/orgs/${org}/settings/billing/shared-storage`);
+      const params = {};
+      if (options.year) params.year = options.year;
+      if (options.month) params.month = options.month;
+      // Use the new billing platform endpoint format
+      return await this.get(`/organizations/${org}/settings/billing/usage`, params);
     } catch (error) {
       return null;
     }
@@ -436,39 +441,15 @@ class GitHubApiService {
    */
   async getBudgets(org) {
     try {
-      const response = await this.get(`/orgs/${org}/settings/billing/budgets`);
+      // Use new billing platform endpoint format
+      const response = await this.get(`/organizations/${org}/settings/billing/budgets`);
       return response.budgets || response || [];
     } catch (error) {
       return [];
     }
   }
 
-  /**
-   * Get Advanced Security active committers for an organization
-   */
-  async getAdvancedSecurityCommitters(org) {
-    try {
-      return await this.get(`/orgs/${org}/settings/billing/advanced-security`);
-    } catch (error) {
-      return null;
-    }
-  }
-
-  /**
-   * Get billing usage report for an organization
-   * Requires the new billing platform
-   */
-  async getBillingUsage(org, options = {}) {
-    try {
-      const params = {};
-      if (options.year) params.year = options.year;
-      if (options.month) params.month = options.month;
-      if (options.day) params.day = options.day;
-      return await this.get(`/orgs/${org}/settings/billing/usage`, params);
-    } catch (error) {
-      return null;
-    }
-  }
 }
+
 
 export default GitHubApiService;

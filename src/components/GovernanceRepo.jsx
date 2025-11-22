@@ -30,6 +30,8 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
   const [totalNoAdmin, setTotalNoAdmin] = useState(0);
   const [progress, setProgress] = useState({ current: 0, total: 0, repoName: '' });
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [reposWithAlerts, setReposWithAlerts] = useState([]);
+  const [totalReposWithAlerts, setTotalReposWithAlerts] = useState(0);
 
   const fetchData = async (skipCache = false) => {
     if (!apiService || !orgName) return;
@@ -37,13 +39,16 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
     // Try to load from cache first
     if (!skipCache) {
       const cachedData = loadFromCache(orgName, 'governance-repo');
-      if (cachedData) {
+      // Validate cache has reposWithAlerts field (added later)
+      if (cachedData && 'reposWithAlerts' in cachedData) {
         setForkedRepos(cachedData.forkedRepos || []);
         setTotalForks(cachedData.totalForks || 0);
         setUnprotectedRepos(cachedData.unprotectedRepos);
         setNoAdminRepos(cachedData.noAdminRepos);
         setTotalUnprotected(cachedData.totalUnprotected);
         setTotalNoAdmin(cachedData.totalNoAdmin);
+        setReposWithAlerts(cachedData.reposWithAlerts || []);
+        setTotalReposWithAlerts(cachedData.totalReposWithAlerts || 0);
         setHasLoaded(true);
         return;
       }
@@ -135,6 +140,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
 
       const unprotected = [];
       const noAdmin = [];
+      const withAlerts = [];
 
       // Check each repo
       for (let i = 0; i < activeRepos.length; i++) {
@@ -143,10 +149,11 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
 
         try {
           // Fetch all data in parallel for this repo
-          const [isProtected, teams, directCollaborators] = await Promise.all([
+          const [isProtected, teams, directCollaborators, dependabotAlerts] = await Promise.all([
             apiService.isBranchProtected(orgName, repo.name, repo.default_branch).catch(() => false),
             apiService.getRepoTeams(orgName, repo.name).catch(() => []),
-            apiService.getRepoDirectCollaborators(orgName, repo.name).catch(() => [])
+            apiService.getRepoDirectCollaborators(orgName, repo.name).catch(() => []),
+            apiService.getDependabotAlerts(orgName, repo.name, 'open').catch(() => [])
           ]);
 
           // Check branch protection
@@ -168,8 +175,6 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
 
           const totalExplicitAdmins = adminTeams.length + adminCollaborators.length;
 
-          console.log(`Repo: ${repo.name}, Admin teams: ${adminTeams.length}, Direct admin collaborators: ${adminCollaborators.length}, Total explicit admins: ${totalExplicitAdmins}`);
-
           if (totalExplicitAdmins === 0) {
             noAdmin.push({
               name: repo.name,
@@ -179,18 +184,50 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
               settingsUrl: `${repo.html_url}/settings/access`,
             });
           }
+
+          // Check for Dependabot alerts
+          if (dependabotAlerts.length > 0) {
+            // Count by severity
+            const severityCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+            dependabotAlerts.forEach(alert => {
+              const severity = alert.security_advisory?.severity || alert.security_vulnerability?.severity || 'low';
+              if (severityCounts.hasOwnProperty(severity)) {
+                severityCounts[severity]++;
+              }
+            });
+
+            withAlerts.push({
+              name: repo.name,
+              url: repo.html_url,
+              alertsUrl: `${repo.html_url}/security/dependabot`,
+              visibility: repo.private ? 'private' : 'public',
+              totalAlerts: dependabotAlerts.length,
+              critical: severityCounts.critical,
+              high: severityCounts.high,
+              medium: severityCounts.medium,
+              low: severityCounts.low,
+            });
+          }
         } catch (err) {
           console.error(`Error checking repo ${repo.name}:`, err);
           // Continue with next repo
         }
       }
 
+      // Sort repos with alerts by severity (critical first, then high, etc.)
+      withAlerts.sort((a, b) => {
+        if (b.critical !== a.critical) return b.critical - a.critical;
+        if (b.high !== a.high) return b.high - a.high;
+        if (b.medium !== a.medium) return b.medium - a.medium;
+        return b.totalAlerts - a.totalAlerts;
+      });
+
       setTotalUnprotected(unprotected.length);
       setUnprotectedRepos(unprotected);
       setTotalNoAdmin(noAdmin.length);
       setNoAdminRepos(noAdmin);
-
-      console.log(`Found ${noAdmin.length} repos with no admin`);
+      setReposWithAlerts(withAlerts);
+      setTotalReposWithAlerts(withAlerts.length);
       setHasLoaded(true);
 
       // Save to cache
@@ -200,7 +237,9 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
         unprotectedRepos: unprotected,
         noAdminRepos: noAdmin,
         totalUnprotected: unprotected.length,
-        totalNoAdmin: noAdmin.length
+        totalNoAdmin: noAdmin.length,
+        reposWithAlerts: withAlerts,
+        totalReposWithAlerts: withAlerts.length
       }, config.cache.ttlHours);
     } catch (err) {
       setError(err.message);
@@ -413,6 +452,93 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
           rows={forkedRepos}
           getRowId={(row) => row.name}
           emptyMessage="No forked repositories found"
+        />
+      </Box>
+
+      <Divider sx={{ my: 4 }} />
+
+      {/* Dependabot Alerts */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Dependabot Alerts
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Repositories with open security vulnerabilities detected by Dependabot
+        </Typography>
+        <DataTable
+          columns={[
+            {
+              field: 'name',
+              headerName: 'Repository Name',
+              renderCell: (row) => (
+                <Link href={row.alertsUrl} target="_blank" rel="noopener">
+                  {row.name}
+                </Link>
+              ),
+            },
+            {
+              field: 'totalAlerts',
+              headerName: 'Total',
+              align: 'center',
+              renderCell: (row) => (
+                <Chip label={row.totalAlerts} size="small" color="default" />
+              ),
+            },
+            {
+              field: 'critical',
+              headerName: 'Critical',
+              align: 'center',
+              renderCell: (row) => row.critical > 0 ? (
+                <Chip label={row.critical} size="small" color="error" />
+              ) : (
+                <Typography variant="body2" color="text.secondary">-</Typography>
+              ),
+            },
+            {
+              field: 'high',
+              headerName: 'High',
+              align: 'center',
+              renderCell: (row) => row.high > 0 ? (
+                <Chip label={row.high} size="small" color="warning" />
+              ) : (
+                <Typography variant="body2" color="text.secondary">-</Typography>
+              ),
+            },
+            {
+              field: 'medium',
+              headerName: 'Medium',
+              align: 'center',
+              renderCell: (row) => row.medium > 0 ? (
+                <Chip label={row.medium} size="small" sx={{ bgcolor: 'info.main', color: 'white' }} />
+              ) : (
+                <Typography variant="body2" color="text.secondary">-</Typography>
+              ),
+            },
+            {
+              field: 'low',
+              headerName: 'Low',
+              align: 'center',
+              renderCell: (row) => row.low > 0 ? (
+                <Chip label={row.low} size="small" variant="outlined" />
+              ) : (
+                <Typography variant="body2" color="text.secondary">-</Typography>
+              ),
+            },
+            {
+              field: 'visibility',
+              headerName: 'Visibility',
+              renderCell: (row) => (
+                <Chip
+                  label={row.visibility}
+                  size="small"
+                  color={row.visibility === 'public' ? 'warning' : 'default'}
+                />
+              ),
+            },
+          ]}
+          rows={reposWithAlerts}
+          getRowId={(row) => row.name}
+          emptyMessage="No open Dependabot alerts found"
         />
       </Box>
 

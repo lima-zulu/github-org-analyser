@@ -10,11 +10,10 @@ import {
   CardContent,
   Grid,
   Divider,
-  LinearProgress,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import config from '../config.json';
-import { saveToCache, loadFromCache } from '../utils/cache';
+import { loadFromCache, saveToCache } from '../utils/cache';
 import DataTable from './DataTable';
 
 function Costs({ apiService, orgName, isActive }) {
@@ -27,11 +26,6 @@ function Costs({ apiService, orgName, isActive }) {
   const [copilotBilling, setCopilotBilling] = useState(null);
   const [budgets, setBudgets] = useState([]);
   const [actionsBilling, setActionsBilling] = useState(null);
-  const [packagesBilling, setPackagesBilling] = useState(null);
-  const [sharedStorage, setSharedStorage] = useState(null);
-  const [advancedSecurity, setAdvancedSecurity] = useState(null);
-  const [billingUsage, setBillingUsage] = useState(null);
-  const [previousBillingUsage, setPreviousBillingUsage] = useState(null);
 
   const fetchData = async (skipCache = false) => {
     if (!apiService || !orgName) return;
@@ -39,16 +33,12 @@ function Costs({ apiService, orgName, isActive }) {
     // Try to load from cache first
     if (!skipCache) {
       const cachedData = loadFromCache(orgName, 'costs');
-      if (cachedData) {
+      // Validate cache has all expected fields (actionsBilling was added later)
+      if (cachedData && 'actionsBilling' in cachedData) {
         setOrgData(cachedData.orgData);
         setCopilotBilling(cachedData.copilotBilling);
         setBudgets(cachedData.budgets || []);
         setActionsBilling(cachedData.actionsBilling);
-        setPackagesBilling(cachedData.packagesBilling);
-        setSharedStorage(cachedData.sharedStorage);
-        setAdvancedSecurity(cachedData.advancedSecurity);
-        setBillingUsage(cachedData.billingUsage);
-        setPreviousBillingUsage(cachedData.previousBillingUsage);
         setHasLoaded(true);
         return;
       }
@@ -58,58 +48,79 @@ function Costs({ apiService, orgName, isActive }) {
     setError(null);
 
     try {
-      // Get current and previous month for billing usage
+      // Get current month boundaries for filtering
       const now = new Date();
-      const currentMonth = now.getMonth() + 1;
+      const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
-      const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-      const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
 
       // Fetch all billing data in parallel
       const [
         org,
         copilot,
         budgetsList,
-        actions,
-        packages,
-        shared,
-        ghas,
-        currentUsage,
-        prevUsage
+        billingUsageData
       ] = await Promise.all([
         apiService.getOrganization(orgName),
         apiService.getCopilotBilling(orgName),
         apiService.getBudgets(orgName),
-        apiService.getActionsBilling(orgName),
-        apiService.getPackagesBilling(orgName),
-        apiService.getSharedStorageBilling(orgName),
-        apiService.getAdvancedSecurityCommitters(orgName),
-        apiService.getBillingUsage(orgName, { year: currentYear, month: currentMonth }),
-        apiService.getBillingUsage(orgName, { year: prevYear, month: prevMonth })
+        apiService.getBillingUsageDetails(orgName)
       ]);
+
+      const budgetsData = Array.isArray(budgetsList) ? budgetsList : [];
 
       setOrgData(org);
       setCopilotBilling(copilot);
-      setBudgets(Array.isArray(budgetsList) ? budgetsList : []);
-      setActionsBilling(actions);
-      setPackagesBilling(packages);
-      setSharedStorage(shared);
-      setAdvancedSecurity(ghas);
-      setBillingUsage(currentUsage);
-      setPreviousBillingUsage(prevUsage);
+      setBudgets(budgetsData);
+
+      // Process billing usage data
+      let actionsData = null;
+      if (billingUsageData && Array.isArray(billingUsageData.usageItems)) {
+        // Filter to current month and aggregate by product
+        const currentMonthItems = billingUsageData.usageItems.filter(item => {
+          const itemDate = new Date(item.date);
+          return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+        });
+
+        // Aggregate Actions minutes
+        let totalMinutes = 0;
+        let ubuntuMinutes = 0;
+        let macosMinutes = 0;
+        let windowsMinutes = 0;
+
+        currentMonthItems.forEach(item => {
+          const product = (item.product || '').toLowerCase();
+          const sku = (item.sku || '').toLowerCase();
+
+          if (product === 'actions' && item.unitType === 'Minutes') {
+            const qty = item.quantity || 0;
+            totalMinutes += qty;
+            if (sku.includes('linux')) ubuntuMinutes += qty;
+            else if (sku.includes('macos')) macosMinutes += qty;
+            else if (sku.includes('windows')) windowsMinutes += qty;
+          }
+        });
+
+        actionsData = {
+          minutes: Math.round(totalMinutes),
+          included: config.billing.includedActionsMinutes,
+          paid: Math.max(0, Math.round(totalMinutes) - config.billing.includedActionsMinutes),
+          breakdown: {
+            ubuntu: Math.round(ubuntuMinutes),
+            macos: Math.round(macosMinutes),
+            windows: Math.round(windowsMinutes)
+          }
+        };
+      }
+
+      setActionsBilling(actionsData);
       setHasLoaded(true);
 
       // Save to cache
       saveToCache(orgName, 'costs', {
         orgData: org,
         copilotBilling: copilot,
-        budgets: Array.isArray(budgetsList) ? budgetsList : [],
-        actionsBilling: actions,
-        packagesBilling: packages,
-        sharedStorage: shared,
-        advancedSecurity: ghas,
-        billingUsage: currentUsage,
-        previousBillingUsage: prevUsage
+        budgets: budgetsData,
+        actionsBilling: actionsData
       }, config.cache.ttlHours);
     } catch (err) {
       setError(err.message);
@@ -127,18 +138,6 @@ function Costs({ apiService, orgName, isActive }) {
   const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return '-';
     return `$${parseFloat(amount).toFixed(2)}`;
-  };
-
-  const formatStorage = (gb) => {
-    if (gb === null || gb === undefined) return '-';
-    if (gb < 1) return `${(gb * 1024).toFixed(0)} MB`;
-    return `${parseFloat(gb).toFixed(2)} GB`;
-  };
-
-  const getMonthName = (monthOffset = 0) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - monthOffset);
-    return date.toLocaleString('default', { month: 'short' });
   };
 
   if (!apiService || !orgName) {
@@ -205,74 +204,28 @@ function Costs({ apiService, orgName, isActive }) {
         </Tooltip>
       </Box>
 
-      {/* OVERVIEW SECTION */}
+      {/* SUBSCRIPTION SECTION */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" gutterBottom>
-          Overview
+          Subscription
         </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Metered Usage
-                </Typography>
+        <Card sx={{ maxWidth: 400 }}>
+          <CardContent>
+            <Typography variant="h6">
+              GitHub {orgData?.plan?.name ? orgData.plan.name.charAt(0).toUpperCase() + orgData.plan.name.slice(1) : '-'}
+            </Typography>
+            {orgSeats && orgSeats.total > 0 && (
+              <>
                 <Typography variant="h4">
-                  {formatCurrency(billingUsage?.total_metered_usage_amount)}
+                  {formatCurrency(orgSeats.total * config.billing.pricePerUserMonth)} <Typography component="span" variant="body2" color="text.secondary">per month</Typography>
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {getMonthName(0)}
+                <Typography variant="body2" color="text.secondary">
+                  {orgSeats.total} licenses · {formatCurrency(config.billing.pricePerUserMonth)} per user/month
                 </Typography>
-                {previousBillingUsage && (
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatCurrency(previousBillingUsage?.total_metered_usage_amount)} {getMonthName(1)}
-                    </Typography>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Included Usage
-                </Typography>
-                <Typography variant="h4">
-                  {formatCurrency(billingUsage?.total_included_usage_amount)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {getMonthName(0)}
-                </Typography>
-                {previousBillingUsage && (
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatCurrency(previousBillingUsage?.total_included_usage_amount)} {getMonthName(1)}
-                    </Typography>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Subscription
-                </Typography>
-                <Typography variant="h4">
-                  {orgData?.plan?.name || '-'}
-                </Typography>
-                {orgSeats && (
-                  <Typography variant="body2" color="text.secondary">
-                    {orgSeats.total} licenses
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -360,21 +313,27 @@ function Costs({ apiService, orgName, isActive }) {
               field: 'product',
               headerName: 'Product',
               renderCell: (row) => {
-                // Handle different API response formats
-                const skus = row.budget_product_skus || row.product_skus || [];
-                const product = row.product || row.name || (Array.isArray(skus) ? skus.join(', ') : skus);
-                return product ? product.charAt(0).toUpperCase() + product.slice(1) : '-';
+                const sku = row.budget_product_sku || '';
+                // Format product names nicely
+                const productNames = {
+                  'actions': 'Actions',
+                  'packages': 'Packages',
+                  'codespaces': 'Codespaces',
+                  'git_lfs': 'Git LFS',
+                  'shared_storage': 'Shared Storage'
+                };
+                return productNames[sku] || sku.charAt(0).toUpperCase() + sku.slice(1).replace(/_/g, ' ');
               }
             },
             {
               field: 'amount_spent',
               headerName: 'Spent',
-              renderCell: (row) => formatCurrency(row.amount_spent ?? row.current_spend ?? 0)
+              renderCell: (row) => formatCurrency(row.amount_spent ?? 0)
             },
             {
               field: 'budget_amount',
               headerName: 'Budget',
-              renderCell: (row) => formatCurrency(row.budget_amount ?? row.amount_limit ?? row.limit ?? 0)
+              renderCell: (row) => formatCurrency(row.budget_amount ?? 0)
             },
           ]}
           rows={budgets}
@@ -391,7 +350,7 @@ function Costs({ apiService, orgName, isActive }) {
           Actions
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          GitHub Actions minutes and storage usage
+          GitHub Actions minutes usage
         </Typography>
         {actionsBilling ? (
           <Card>
@@ -399,161 +358,31 @@ function Costs({ apiService, orgName, isActive }) {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" gutterBottom>Minutes</Typography>
-                  <Typography variant="h5">
-                    {actionsBilling.total_minutes_used?.toLocaleString() || 0} / {actionsBilling.included_minutes?.toLocaleString() || 0}
+                  <Typography variant="h4">
+                    {actionsBilling.minutes?.toLocaleString() || 0} <Typography component="span" variant="body1" color="text.secondary">min used</Typography>
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">included</Typography>
-                  {actionsBilling.total_paid_minutes_used > 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    / {actionsBilling.included?.toLocaleString() || 0} min included
+                  </Typography>
+                  {actionsBilling.paid > 0 && (
                     <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>
-                      + {actionsBilling.total_paid_minutes_used?.toLocaleString()} paid minutes
+                      {actionsBilling.paid.toLocaleString()} paid minutes used
                     </Typography>
                   )}
-                  <Box sx={{ mt: 2 }}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.min((actionsBilling.total_minutes_used / actionsBilling.included_minutes) * 100, 100)}
-                      sx={{ height: 8, borderRadius: 1 }}
-                    />
-                  </Box>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" gutterBottom>By Runner OS</Typography>
-                  {actionsBilling.minutes_used_breakdown && (
-                    <Box>
-                      <Typography variant="body2">
-                        Ubuntu: {actionsBilling.minutes_used_breakdown.UBUNTU?.toLocaleString() || 0} mins
-                      </Typography>
-                      <Typography variant="body2">
-                        macOS: {actionsBilling.minutes_used_breakdown.MACOS?.toLocaleString() || 0} mins
-                      </Typography>
-                      <Typography variant="body2">
-                        Windows: {actionsBilling.minutes_used_breakdown.WINDOWS?.toLocaleString() || 0} mins
-                      </Typography>
-                    </Box>
-                  )}
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        ) : (
-          <Alert severity="info">Actions billing data not available</Alert>
-        )}
-      </Box>
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* STORAGE SECTION */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Storage
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Storage usage across GitHub products
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Actions & Packages</Typography>
-                {sharedStorage ? (
-                  <>
-                    <Typography variant="h5">
-                      {formatStorage(sharedStorage.estimated_storage_for_month)}
+                  <Box>
+                    <Typography variant="body2">
+                      Ubuntu: {actionsBilling.breakdown?.ubuntu?.toLocaleString() || 0} mins
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      of {formatStorage(sharedStorage.days_left_in_billing_cycle ? sharedStorage.estimated_storage_for_month : 2)} included
+                    <Typography variant="body2">
+                      macOS: {actionsBilling.breakdown?.macos?.toLocaleString() || 0} mins
                     </Typography>
-                  </>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">Not available</Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Packages</Typography>
-                {packagesBilling ? (
-                  <>
-                    <Typography variant="h5">
-                      {formatStorage(packagesBilling.total_gigabytes_bandwidth_used)}
+                    <Typography variant="body2">
+                      Windows: {actionsBilling.breakdown?.windows?.toLocaleString() || 0} mins
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      bandwidth used
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      {formatStorage(packagesBilling.total_paid_gigabytes_bandwidth_used)} paid
-                    </Typography>
-                  </>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">Not available</Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Git LFS</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Included in storage metrics
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Box>
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* CODESPACES SECTION */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Codespaces
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Codespaces compute and storage usage
-        </Typography>
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary">
-              Codespaces usage is included in the metered usage overview.
-              Check budgets for spending limits.
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* ADVANCED SECURITY SECTION */}
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          Advanced Security
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          GitHub Advanced Security active committers
-        </Typography>
-        {advancedSecurity ? (
-          <Card>
-            <CardContent>
-              <Grid container spacing={2}>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">Active Committers</Typography>
-                  <Typography variant="h5">{advancedSecurity.total_advanced_security_committers || 0}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">Purchased</Typography>
-                  <Typography variant="h5">{advancedSecurity.purchased_advanced_security_committers || 0}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">Maximum Needed</Typography>
-                  <Typography variant="h5">{advancedSecurity.maximum_advanced_security_committers || 0}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">Repositories</Typography>
-                  <Typography variant="h5">{advancedSecurity.total_count || 0}</Typography>
+                  </Box>
                 </Grid>
               </Grid>
             </CardContent>
@@ -562,7 +391,7 @@ function Costs({ apiService, orgName, isActive }) {
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">
-                Advanced Security data not available
+                Actions usage data not available
               </Typography>
             </CardContent>
           </Card>
