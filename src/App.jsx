@@ -27,11 +27,10 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import CloseIcon from '@mui/icons-material/Close';
 import { getTheme } from './theme';
 import GitHubApiService from './services/githubApi';
-import ArchiveCandidates from './components/ArchiveCandidates';
 import CleanupNeeded from './components/CleanupNeeded';
-import ForkedRepos from './components/ForkedRepos';
-import SecurityGovernanceRepo from './components/SecurityGovernanceRepo';
-import SecurityGovernanceOrg from './components/SecurityGovernanceOrg';
+import GovernanceRepo from './components/GovernanceRepo';
+import GovernanceOrg from './components/GovernanceOrg';
+import Costs from './components/Costs';
 import SetupInstructions from './components/SetupInstructions';
 import Info from './components/Info';
 
@@ -253,11 +252,10 @@ function App() {
           <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
             <Tab label="Setup" />
             <Tab label="Info" />
-            <Tab label="Repos to Archive" />
-            <Tab label="Repos to Clean Up" />
-            <Tab label="Forked Repos" />
-            <Tab label="Security & Governance (Repo)" />
-            <Tab label="Security & Governance (Org)" />
+            <Tab label="Cleanup" />
+            <Tab label="Governance (Repo)" />
+            <Tab label="Governance (Org)" />
+            <Tab label="Costs" />
           </Tabs>
         </Box>
 
@@ -270,19 +268,16 @@ function App() {
             <Info />
           </Box>
           <Box sx={{ display: activeTab === 2 ? 'block' : 'none' }}>
-            <ArchiveCandidates apiService={apiService} orgName={selectedOrg} isActive={activeTab === 2} />
+            <CleanupNeeded apiService={apiService} orgName={selectedOrg} isActive={activeTab === 2} />
           </Box>
           <Box sx={{ display: activeTab === 3 ? 'block' : 'none' }}>
-            <CleanupNeeded apiService={apiService} orgName={selectedOrg} isActive={activeTab === 3} />
+            <GovernanceRepo apiService={apiService} orgName={selectedOrg} isActive={activeTab === 3} />
           </Box>
           <Box sx={{ display: activeTab === 4 ? 'block' : 'none' }}>
-            <ForkedRepos apiService={apiService} orgName={selectedOrg} isActive={activeTab === 4} />
+            <GovernanceOrg apiService={apiService} orgName={selectedOrg} isActive={activeTab === 4} />
           </Box>
           <Box sx={{ display: activeTab === 5 ? 'block' : 'none' }}>
-            <SecurityGovernanceRepo apiService={apiService} orgName={selectedOrg} isActive={activeTab === 5} />
-          </Box>
-          <Box sx={{ display: activeTab === 6 ? 'block' : 'none' }}>
-            <SecurityGovernanceOrg apiService={apiService} orgName={selectedOrg} isActive={activeTab === 6} />
+            <Costs apiService={apiService} orgName={selectedOrg} isActive={activeTab === 5} />
           </Box>
         </Box>
 

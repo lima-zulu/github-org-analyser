@@ -145,7 +145,7 @@ function Info() {
             <ListItem>
               <ListItemText
                 primary="Forked Repositories"
-                secondary="Forked repositories are excluded from all analysis tabs (Archive, Cleanup, Security & Governance). A separate 'Forked Repos' tab lists all forks with their source and visibility."
+                secondary="Forked repositories are excluded from all analysis tabs (Archive, Cleanup, Governance). A separate 'Forked Repos' tab lists all forks with their source and visibility."
               />
             </ListItem>
           </List>

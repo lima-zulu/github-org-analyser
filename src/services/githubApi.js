@@ -378,6 +378,97 @@ class GitHubApiService {
       return null;
     }
   }
+
+  // ============================================
+  // BILLING API METHODS
+  // ============================================
+
+  /**
+   * Get GitHub Actions billing for an organization
+   * Returns minutes used by OS and included minutes
+   */
+  async getActionsBilling(org) {
+    try {
+      return await this.get(`/orgs/${org}/settings/billing/actions`);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get GitHub Packages billing for an organization
+   * Returns storage and bandwidth usage
+   */
+  async getPackagesBilling(org) {
+    try {
+      return await this.get(`/orgs/${org}/settings/billing/packages`);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get shared storage billing for an organization
+   * Returns combined Actions and Packages storage
+   */
+  async getSharedStorageBilling(org) {
+    try {
+      return await this.get(`/orgs/${org}/settings/billing/shared-storage`);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get Copilot billing for an organization
+   * Returns seat allocation and usage
+   */
+  async getCopilotBilling(org) {
+    try {
+      return await this.get(`/orgs/${org}/copilot/billing`);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get all budgets for an organization
+   */
+  async getBudgets(org) {
+    try {
+      const response = await this.get(`/orgs/${org}/settings/billing/budgets`);
+      return response.budgets || response || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Get Advanced Security active committers for an organization
+   */
+  async getAdvancedSecurityCommitters(org) {
+    try {
+      return await this.get(`/orgs/${org}/settings/billing/advanced-security`);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get billing usage report for an organization
+   * Requires the new billing platform
+   */
+  async getBillingUsage(org, options = {}) {
+    try {
+      const params = {};
+      if (options.year) params.year = options.year;
+      if (options.month) params.month = options.month;
+      if (options.day) params.day = options.day;
+      return await this.get(`/orgs/${org}/settings/billing/usage`, params);
+    } catch (error) {
+      return null;
+    }
+  }
 }
 
 export default GitHubApiService;
