@@ -369,6 +369,18 @@ class GitHubApiService {
   }
 
   /**
+   * Get languages used in a repository
+   * Returns object with language names as keys and byte counts as values
+   */
+  async getRepoLanguages(owner, repo) {
+    try {
+      return await this.get(`/repos/${owner}/${repo}/languages`);
+    } catch (error) {
+      return {};
+    }
+  }
+
+  /**
    * Compare two branches to get commits behind/ahead
    */
   async compareBranches(owner, repo, base, head) {

@@ -69,7 +69,16 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
       const forksWithDetailsPromises = forks.map(async (repo, index) => {
         setProgress({ current: index + 1, total: forks.length, repoName: `Fork: ${repo.name}` });
 
-        const fullRepo = await apiService.getRepository(orgName, repo.name);
+        const [fullRepo, languages] = await Promise.all([
+          apiService.getRepository(orgName, repo.name),
+          apiService.getRepoLanguages(orgName, repo.name)
+        ]);
+
+        // Get top languages sorted by bytes
+        const topLanguages = Object.entries(languages || {})
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([lang]) => lang);
 
         if (!fullRepo || !fullRepo.source) {
           return {
@@ -84,7 +93,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             sourceStars: 0,
             sourceWatchers: 0,
             commitsBehind: null,
-            language: repo.language,
+            languages: topLanguages,
           };
         }
 
@@ -124,7 +133,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
           sourceStars: source.stargazers_count,
           sourceWatchers: source.watchers_count,
           commitsBehind: commitsBehind,
-          language: repo.language,
+          languages: topLanguages,
         };
       });
 
@@ -381,10 +390,14 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
               ),
             },
             {
-              field: 'language',
-              headerName: 'Language',
-              renderCell: (row) => row.language ? (
-                <Chip label={row.language} size="small" variant="outlined" />
+              field: 'languages',
+              headerName: 'Languages',
+              renderCell: (row) => row.languages && row.languages.length > 0 ? (
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {row.languages.map((lang) => (
+                    <Chip key={lang} label={lang} size="small" variant="outlined" />
+                  ))}
+                </Box>
               ) : (
                 <Typography variant="body2" color="text.secondary">-</Typography>
               ),

@@ -10,11 +10,10 @@ import {
   ListItemIcon,
   ListItemText,
   Alert,
+  Grid,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import LockIcon from '@mui/icons-material/Lock';
-import WarningIcon from '@mui/icons-material/Warning';
 import SecurityIcon from '@mui/icons-material/Security';
 import StorageIcon from '@mui/icons-material/Storage';
 import SpeedIcon from '@mui/icons-material/Speed';
@@ -39,68 +38,38 @@ function FAQ() {
           <ListItem><ListItemText primary='2. Click "Generate new token"' /></ListItem>
           <ListItem><ListItemText primary='3. Token name: "github-org-analyser" (recommended)' /></ListItem>
           <ListItem><ListItemText primary="4. Set expiration according to your security policy" /></ListItem>
-          <ListItem><ListItemText primary="5. IMPORTANT: Resource owner must be set to your organisation (not your personal account)" /></ListItem>
+          <ListItem><ListItemText primary="5. Resource owner must be set to your organisation (not your personal account)" secondary="This scopes the token to access org repos and org-level data" /></ListItem>
           <ListItem><ListItemText primary='6. Select "All repositories"' /></ListItem>
-          <ListItem><ListItemText primary="7. Configure permissions in BOTH tabs (see below)" /></ListItem>
+          <ListItem><ListItemText primary="7. Configure permissions (see below)" /></ListItem>
         </List>
         <Alert severity="info" sx={{ mt: 1 }}>
           After selecting "All repositories", you will see TWO permission tabs: "Repositories" and "Organisations". You must configure permissions in BOTH tabs.
         </Alert>
       </Paper>
 
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>Repository Permissions (Repositories tab)</Typography>
-        <List dense>
-          <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Administration" secondary="Read" /></ListItem>
-          <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Contents" secondary="Read" /></ListItem>
-          <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Dependabot alerts" secondary="Read" /></ListItem>
-          <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Metadata" secondary="Read (usually set automatically)" /></ListItem>
-          <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Pull requests" secondary="Read" /></ListItem>
-        </List>
-      </Paper>
-
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>Organisation Permissions (Organisations tab)</Typography>
-        <List dense>
-          <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Administration" secondary="Read" /></ListItem>
-          <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Members" secondary="Read (only appears when Resource owner is an organisation)" /></ListItem>
-        </List>
-      </Paper>
-
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>Security Best Practices</Typography>
-        <List dense>
-          <ListItem><ListItemIcon><LockIcon color="error" fontSize="small" /></ListItemIcon><ListItemText primary="Never share your token with anyone" /></ListItem>
-          <ListItem><ListItemIcon><LockIcon color="error" fontSize="small" /></ListItemIcon><ListItemText primary="Create token with minimal permissions" secondary="Only what's listed above" /></ListItem>
-          <ListItem><ListItemIcon><LockIcon color="error" fontSize="small" /></ListItemIcon><ListItemText primary="Set an expiration date" secondary={"Don't use \"No expiration\""} /></ListItem>
-          <ListItem><ListItemIcon><LockIcon color="error" fontSize="small" /></ListItemIcon><ListItemText primary="Token is stored only in browser session memory" secondary="Cleared when tab closes" /></ListItem>
-          <ListItem><ListItemIcon><LockIcon color="error" fontSize="small" /></ListItemIcon><ListItemText primary='Use "Clear Token" button when done' /></ListItem>
-          <ListItem><ListItemIcon><LockIcon color="error" fontSize="small" /></ListItemIcon><ListItemText primary="Revoke token from GitHub when no longer needed" /></ListItem>
-          <ListItem><ListItemIcon><LockIcon color="error" fontSize="small" /></ListItemIcon><ListItemText primary="If token is compromised, revoke immediately" secondary="From GitHub settings" /></ListItem>
-        </List>
-      </Paper>
-
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>Troubleshooting</Typography>
-        <List dense>
-          <ListItem><ListItemIcon><WarningIcon color="warning" fontSize="small" /></ListItemIcon><ListItemText primary='"Invalid token" error' secondary="Check for typos, ensure token hasn't expired" /></ListItem>
-          <ListItem><ListItemIcon><WarningIcon color="warning" fontSize="small" /></ListItemIcon><ListItemText primary='"Insufficient permissions" error' secondary="Verify you set permissions in BOTH the Repositories tab AND Organisations tab" /></ListItem>
-          <ListItem><ListItemIcon><WarningIcon color="warning" fontSize="small" /></ListItemIcon><ListItemText primary='"Resource owner" is your personal account' secondary="Change Resource owner to your organisation - the Members permission won't appear for personal accounts" /></ListItem>
-          <ListItem><ListItemIcon><WarningIcon color="warning" fontSize="small" /></ListItemIcon><ListItemText primary='"Rate limit exceeded" error' secondary="GitHub limits API calls to 5,000/hour. Wait and try again." /></ListItem>
-          <ListItem><ListItemIcon><WarningIcon color="warning" fontSize="small" /></ListItemIcon><ListItemText primary='"Organisation not found" error' secondary="Ensure you have admin access to the organisation and Resource owner is set correctly" /></ListItem>
-        </List>
-      </Paper>
-
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>Token Revocation</Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>When you're done using this tool:</Typography>
-        <List dense>
-          <ListItem><ListItemText primary='1. Click "Clear Token" button in this app' /></ListItem>
-          <ListItem><ListItemText primary="2. Go to GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens" /></ListItem>
-          <ListItem><ListItemText primary='3. Find your "github-org-analyser" token' /></ListItem>
-          <ListItem><ListItemText primary='4. Click "Delete" or "Revoke"' /></ListItem>
-        </List>
-      </Paper>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 2, height: '100%' }}>
+            <Typography variant="subtitle2" gutterBottom>Repository Permissions (Repositories tab)</Typography>
+            <List dense>
+              <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Administration" secondary="Read" /></ListItem>
+              <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Contents" secondary="Read" /></ListItem>
+              <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Dependabot alerts" secondary="Read" /></ListItem>
+              <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Metadata" secondary="Read (usually set automatically)" /></ListItem>
+              <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Pull requests" secondary="Read" /></ListItem>
+            </List>
+          </Paper>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 2, height: '100%' }}>
+            <Typography variant="subtitle2" gutterBottom>Organisation Permissions (Organisations tab)</Typography>
+            <List dense>
+              <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Administration" secondary="Read" /></ListItem>
+              <ListItem><ListItemIcon><CheckCircleIcon color="success" fontSize="small" /></ListItemIcon><ListItemText primary="Members" secondary="Read (only appears when Resource owner is an organisation)" /></ListItem>
+            </List>
+          </Paper>
+        </Grid>
+      </Grid>
     </Box>
   );
 

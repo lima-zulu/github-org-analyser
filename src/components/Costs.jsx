@@ -236,7 +236,7 @@ function Costs({ apiService, orgName, isActive }) {
           Seat Usage
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="subtitle2" gutterBottom>
@@ -244,15 +244,15 @@ function Costs({ apiService, orgName, isActive }) {
                 </Typography>
                 {orgSeats ? (
                   <Grid container spacing={2}>
-                    <Grid item xs={4}>
+                    <Grid size={4}>
                       <Typography variant="body2" color="text.secondary">Total</Typography>
                       <Typography variant="h5">{orgSeats.total}</Typography>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid size={4}>
                       <Typography variant="body2" color="text.secondary">Used</Typography>
                       <Typography variant="h5" color="success.main">{orgSeats.filled}</Typography>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid size={4}>
                       <Typography variant="body2" color="text.secondary">Unused</Typography>
                       <Typography variant="h5" color={orgSeats.unused > 0 ? 'warning.main' : 'text.primary'}>
                         {orgSeats.unused}
@@ -265,7 +265,7 @@ function Costs({ apiService, orgName, isActive }) {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="subtitle2" gutterBottom>
@@ -273,15 +273,15 @@ function Costs({ apiService, orgName, isActive }) {
                 </Typography>
                 {copilotSeats ? (
                   <Grid container spacing={2}>
-                    <Grid item xs={4}>
+                    <Grid size={4}>
                       <Typography variant="body2" color="text.secondary">Total</Typography>
                       <Typography variant="h5">{copilotSeats.total}</Typography>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid size={4}>
                       <Typography variant="body2" color="text.secondary">Active</Typography>
                       <Typography variant="h5" color="success.main">{copilotSeats.active}</Typography>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid size={4}>
                       <Typography variant="body2" color="text.secondary">Inactive</Typography>
                       <Typography variant="h5" color={copilotSeats.inactive > 0 ? 'warning.main' : 'text.primary'}>
                         {copilotSeats.inactive}
@@ -356,7 +356,7 @@ function Costs({ apiService, orgName, isActive }) {
           <Card>
             <CardContent>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" gutterBottom>Minutes</Typography>
                   <Typography variant="h4">
                     {actionsBilling.minutes?.toLocaleString() || 0} <Typography component="span" variant="body1" color="text.secondary">min used</Typography>
@@ -370,7 +370,7 @@ function Costs({ apiService, orgName, isActive }) {
                     </Typography>
                   )}
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" gutterBottom>By Runner OS</Typography>
                   <Box>
                     <Typography variant="body2">
