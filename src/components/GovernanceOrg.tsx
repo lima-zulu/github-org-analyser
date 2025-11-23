@@ -12,12 +12,12 @@ import {
   Chip,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { getConfig } from '../utils/config';
+import { useConfig } from '../hooks/useConfig';
 import { saveToCache, loadFromCache } from '../utils/cache';
 import DataTable from './DataTable';
 
 function GovernanceOrg({ apiService, orgName, isActive }) {
-  const config = getConfig();
+  const config = useConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [_orgData, setOrgData] = useState(null);

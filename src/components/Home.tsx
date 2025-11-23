@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -24,11 +24,11 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LanguageIcon from '@mui/icons-material/Language';
 import XIcon from '@mui/icons-material/X';
 import GitHubIcon from '@mui/icons-material/GitHub';
-import { getConfig } from '../utils/config';
+import { useConfig } from '../hooks/useConfig';
 import { saveToCache, loadFromCache } from '../utils/cache';
 
 function Home({ apiService, orgName, isActive }) {
-  const config = useMemo(() => getConfig(), []);
+  const config = useConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);

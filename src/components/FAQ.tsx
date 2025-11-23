@@ -1,3 +1,4 @@
+import { useConfig } from '../hooks/useConfig';
 import {
   Box,
   Typography,
@@ -17,7 +18,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SecurityIcon from '@mui/icons-material/Security';
 import StorageIcon from '@mui/icons-material/Storage';
 import SpeedIcon from '@mui/icons-material/Speed';
-import { getConfig } from '../utils/config';
 
 // Q1: Setup content - defined outside FAQ to avoid recreating on each render
 const SetupContent = () => (
@@ -253,7 +253,7 @@ const InfoContent = () => (
 );
 
 function FAQ() {
-  const config = getConfig();
+  const config = useConfig();
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>

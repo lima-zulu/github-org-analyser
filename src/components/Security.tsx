@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -12,12 +12,12 @@ import {
   LinearProgress,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { getConfig } from '../utils/config';
+import { useConfig } from '../hooks/useConfig';
 import { saveToCache, loadFromCache } from '../utils/cache';
 import DataTable from './DataTable';
 
 function Security({ apiService, orgName, isActive }) {
-  const config = useMemo(() => getConfig(), []);
+  const config = useConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });

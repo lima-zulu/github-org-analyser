@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -15,12 +15,12 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import InfoIcon from '@mui/icons-material/Info';
 import StarIcon from '@mui/icons-material/Star';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import { getConfig } from '../utils/config';
+import { useConfig } from '../hooks/useConfig';
 import { saveToCache, loadFromCache } from '../utils/cache';
 import DataTable from './DataTable';
 
 function GovernanceRepo({ apiService, orgName, isActive }) {
-  const config = useMemo(() => getConfig(), []);
+  const config = useConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [forkedRepos, setForkedRepos] = useState([]);
