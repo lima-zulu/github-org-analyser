@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -30,17 +30,14 @@ function Settings({
   selectedOrg,
   setSelectedOrg,
   darkMode,
-  onToggleDarkMode
+  onToggleDarkMode,
 }) {
   const [config, setConfig] = useState(getConfig());
-  const [hasChanges, setHasChanges] = useState(false);
 
   // Check if current config differs from defaults
-  useEffect(() => {
+  const hasChanges = useMemo(() => {
     const defaults = getDefaultConfig();
-    const current = getConfig();
-    const isDifferent = JSON.stringify(defaults) !== JSON.stringify(current);
-    setHasChanges(isDifferent);
+    return JSON.stringify(defaults) !== JSON.stringify(config);
   }, [config]);
 
   const handleConfigChange = (path, value) => {
@@ -80,7 +77,7 @@ function Settings({
             label="GitHub Personal Access Token"
             type="password"
             value={tokenInput}
-            onChange={(e) => setTokenInput(e.target.value)}
+            onChange={e => setTokenInput(e.target.value)}
             disabled={!!token}
             fullWidth
             placeholder="github_pat_..."
@@ -94,21 +91,12 @@ function Settings({
             >
               {validating ? 'Validating...' : 'Validate Token'}
             </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={onClearToken}
-              disabled={!token}
-            >
+            <Button variant="outlined" color="error" onClick={onClearToken} disabled={!token}>
               Clear Token
             </Button>
           </Box>
 
-          {token && (
-            <Alert severity="success">
-              Token validated and active
-            </Alert>
-          )}
+          {token && <Alert severity="success">Token validated and active</Alert>}
         </Box>
       </Paper>
 
@@ -127,10 +115,10 @@ function Settings({
               <InputLabel>Organisation</InputLabel>
               <Select
                 value={selectedOrg}
-                onChange={(e) => setSelectedOrg(e.target.value)}
+                onChange={e => setSelectedOrg(e.target.value)}
                 label="Organisation"
               >
-                {organizations.map((org) => (
+                {organizations.map(org => (
                   <MenuItem key={org.login} value={org.login}>
                     {org.login}
                   </MenuItem>
@@ -150,9 +138,7 @@ function Settings({
             No organisations found. Make sure your token has the correct permissions.
           </Alert>
         ) : (
-          <Alert severity="info">
-            Enter and validate a token to see available organisations.
-          </Alert>
+          <Alert severity="info">Enter and validate a token to see available organisations.</Alert>
         )}
       </Paper>
 
@@ -161,15 +147,8 @@ function Settings({
       {/* Application Settings Section */}
       <Paper sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">
-            Application Settings
-          </Typography>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={handleReset}
-            disabled={!hasChanges}
-          >
+          <Typography variant="h6">Application Settings</Typography>
+          <Button variant="outlined" size="small" onClick={handleReset} disabled={!hasChanges}>
             Reset to Defaults
           </Button>
         </Box>
@@ -184,13 +163,13 @@ function Settings({
               label="Inactive Repository"
               type="number"
               value={config.thresholds.inactiveRepoMonths}
-              onChange={(e) => handleConfigChange('thresholds.inactiveRepoMonths', e.target.value)}
+              onChange={e => handleConfigChange('thresholds.inactiveRepoMonths', e.target.value)}
               fullWidth
               size="small"
               slotProps={{
                 input: {
                   endAdornment: <InputAdornment position="end">months</InputAdornment>,
-                }
+                },
               }}
               helperText="Repos with no activity for this period are flagged"
             />
@@ -200,13 +179,13 @@ function Settings({
               label="Stale Branch"
               type="number"
               value={config.thresholds.staleBranchDays}
-              onChange={(e) => handleConfigChange('thresholds.staleBranchDays', e.target.value)}
+              onChange={e => handleConfigChange('thresholds.staleBranchDays', e.target.value)}
               fullWidth
               size="small"
               slotProps={{
                 input: {
                   endAdornment: <InputAdornment position="end">days</InputAdornment>,
-                }
+                },
               }}
               helperText="Branches unchanged for this period are stale"
             />
@@ -216,13 +195,13 @@ function Settings({
               label="Old Pull Request"
               type="number"
               value={config.thresholds.oldPRDays}
-              onChange={(e) => handleConfigChange('thresholds.oldPRDays', e.target.value)}
+              onChange={e => handleConfigChange('thresholds.oldPRDays', e.target.value)}
               fullWidth
               size="small"
               slotProps={{
                 input: {
                   endAdornment: <InputAdornment position="end">days</InputAdornment>,
-                }
+                },
               }}
               helperText="Open PRs older than this are flagged"
             />
@@ -232,13 +211,13 @@ function Settings({
               label="Branch Count Warning"
               type="number"
               value={config.thresholds.branchCountWarning}
-              onChange={(e) => handleConfigChange('thresholds.branchCountWarning', e.target.value)}
+              onChange={e => handleConfigChange('thresholds.branchCountWarning', e.target.value)}
               fullWidth
               size="small"
               slotProps={{
                 input: {
                   endAdornment: <InputAdornment position="end">branches</InputAdornment>,
-                }
+                },
               }}
               helperText="Skip detailed analysis for repos with more branches"
             />
@@ -255,14 +234,14 @@ function Settings({
               label="Price Per User"
               type="number"
               value={config.billing.pricePerUserMonth}
-              onChange={(e) => handleConfigChange('billing.pricePerUserMonth', e.target.value)}
+              onChange={e => handleConfigChange('billing.pricePerUserMonth', e.target.value)}
               fullWidth
               size="small"
               slotProps={{
                 input: {
                   startAdornment: <InputAdornment position="start">$</InputAdornment>,
                   endAdornment: <InputAdornment position="end">/month</InputAdornment>,
-                }
+                },
               }}
               helperText="Cost per organisation seat"
             />
@@ -272,13 +251,13 @@ function Settings({
               label="Included Actions Minutes"
               type="number"
               value={config.billing.includedActionsMinutes}
-              onChange={(e) => handleConfigChange('billing.includedActionsMinutes', e.target.value)}
+              onChange={e => handleConfigChange('billing.includedActionsMinutes', e.target.value)}
               fullWidth
               size="small"
               slotProps={{
                 input: {
                   endAdornment: <InputAdornment position="end">minutes</InputAdornment>,
-                }
+                },
               }}
               helperText="Free Actions minutes in your plan"
             />
@@ -295,13 +274,13 @@ function Settings({
               label="Cache Duration"
               type="number"
               value={config.cache.ttlHours}
-              onChange={(e) => handleConfigChange('cache.ttlHours', e.target.value)}
+              onChange={e => handleConfigChange('cache.ttlHours', e.target.value)}
               fullWidth
               size="small"
               slotProps={{
                 input: {
                   endAdornment: <InputAdornment position="end">hours</InputAdornment>,
-                }
+                },
               }}
               helperText="How long to cache API responses"
             />
@@ -314,12 +293,7 @@ function Settings({
         </Typography>
         <Box sx={{ mb: 3 }}>
           <FormControlLabel
-            control={
-              <Switch
-                checked={darkMode}
-                onChange={onToggleDarkMode}
-              />
-            }
+            control={<Switch checked={darkMode} onChange={onToggleDarkMode} />}
             label="Dark Mode"
           />
         </Box>

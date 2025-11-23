@@ -41,7 +41,7 @@ function Home({ apiService, orgName, isActive }) {
     privateArchived: 0,
     forkedActive: 0,
     forkedArchived: 0,
-    total: 0
+    total: 0,
   });
   const [topLanguages, setTopLanguages] = useState([]);
   const [topTopics, setTopTopics] = useState([]);
@@ -71,7 +71,7 @@ function Home({ apiService, orgName, isActive }) {
       const [org, repos, members] = await Promise.all([
         apiService.getOrganization(orgName),
         apiService.getOrgRepositories(orgName),
-        apiService.getOrgMembers(orgName)
+        apiService.getOrgMembers(orgName),
       ]);
 
       setOrgData(org);
@@ -85,7 +85,7 @@ function Home({ apiService, orgName, isActive }) {
         privateArchived: 0,
         forkedActive: 0,
         forkedArchived: 0,
-        total: repos.length
+        total: repos.length,
       };
 
       repos.forEach(repo => {
@@ -146,13 +146,18 @@ function Home({ apiService, orgName, isActive }) {
       setHasLoaded(true);
 
       // Save to cache
-      saveToCache(orgName, 'home', {
-        orgData: org,
-        memberCount: members.length,
-        repoBreakdown: breakdown,
-        topLanguages: sortedLanguages,
-        topTopics: sortedTopics
-      }, config.cache.ttlHours);
+      saveToCache(
+        orgName,
+        'home',
+        {
+          orgData: org,
+          memberCount: members.length,
+          repoBreakdown: breakdown,
+          topLanguages: sortedLanguages,
+          topTopics: sortedTopics,
+        },
+        config.cache.ttlHours,
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -164,6 +169,7 @@ function Home({ apiService, orgName, isActive }) {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, hasLoaded, apiService, orgName]);
 
   if (!apiService || !orgName) {
@@ -176,7 +182,16 @@ function Home({ apiService, orgName, isActive }) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
+          gap: 2,
+        }}
+      >
         <CircularProgress />
         <Typography variant="body1">Loading organisation overview...</Typography>
       </Box>
@@ -186,11 +201,14 @@ function Home({ apiService, orgName, isActive }) {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" action={
-          <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
-            <RefreshIcon />
-          </IconButton>
-        }>
+        <Alert
+          severity="error"
+          action={
+            <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
+              <RefreshIcon />
+            </IconButton>
+          }
+        >
           Error loading data: {error}
         </Alert>
       </Box>
@@ -232,11 +250,15 @@ function Home({ apiService, orgName, isActive }) {
 
             {/* Social Links & Stats */}
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}
+              >
                 <PeopleIcon fontSize="small" />
                 <Typography variant="body2">{memberCount} members</Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}
+              >
                 <PersonAddIcon fontSize="small" />
                 <Typography variant="body2">{orgData.followers} followers</Typography>
               </Box>
@@ -267,8 +289,7 @@ function Home({ apiService, orgName, isActive }) {
                   rel="noopener"
                   sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
                 >
-                  <XIcon fontSize="small" />
-                  @{orgData.twitter_username}
+                  <XIcon fontSize="small" />@{orgData.twitter_username}
                 </Link>
               )}
             </Box>
@@ -281,7 +302,9 @@ function Home({ apiService, orgName, isActive }) {
         {/* Repositories Card */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box
+              sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
+            >
               <Typography variant="h6">Repositories</Typography>
               <Typography variant="h6">{repoBreakdown.total}</Typography>
             </Box>
@@ -297,7 +320,9 @@ function Home({ apiService, orgName, isActive }) {
                 </TableHead>
                 <TableBody>
                   <TableRow>
-                    <TableCell component="th" scope="row">Private</TableCell>
+                    <TableCell component="th" scope="row">
+                      Private
+                    </TableCell>
                     <TableCell align="right">{repoBreakdown.privateActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.privateArchived}</TableCell>
                     <TableCell align="right">
@@ -305,7 +330,9 @@ function Home({ apiService, orgName, isActive }) {
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell component="th" scope="row">Forked</TableCell>
+                    <TableCell component="th" scope="row">
+                      Forked
+                    </TableCell>
                     <TableCell align="right">{repoBreakdown.forkedActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.forkedArchived}</TableCell>
                     <TableCell align="right">
@@ -313,7 +340,9 @@ function Home({ apiService, orgName, isActive }) {
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell component="th" scope="row">Public (not forked)</TableCell>
+                    <TableCell component="th" scope="row">
+                      Public (not forked)
+                    </TableCell>
                     <TableCell align="right">{repoBreakdown.publicActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.publicArchived}</TableCell>
                     <TableCell align="right">
@@ -321,12 +350,22 @@ function Home({ apiService, orgName, isActive }) {
                     </TableCell>
                   </TableRow>
                   <TableRow sx={{ '& td, & th': { borderBottom: 0 } }}>
-                    <TableCell component="th" scope="row"><strong>Total</strong></TableCell>
-                    <TableCell align="right">
-                      <strong>{repoBreakdown.publicActive + repoBreakdown.privateActive + repoBreakdown.forkedActive}</strong>
+                    <TableCell component="th" scope="row">
+                      <strong>Total</strong>
                     </TableCell>
                     <TableCell align="right">
-                      <strong>{repoBreakdown.publicArchived + repoBreakdown.privateArchived + repoBreakdown.forkedArchived}</strong>
+                      <strong>
+                        {repoBreakdown.publicActive +
+                          repoBreakdown.privateActive +
+                          repoBreakdown.forkedActive}
+                      </strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>
+                        {repoBreakdown.publicArchived +
+                          repoBreakdown.privateArchived +
+                          repoBreakdown.forkedArchived}
+                      </strong>
                     </TableCell>
                     <TableCell align="right">
                       <strong>{repoBreakdown.total}</strong>
@@ -341,7 +380,9 @@ function Home({ apiService, orgName, isActive }) {
         {/* Languages & Topics Card */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>Top Languages</Typography>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Top Languages
+            </Typography>
             {topLanguages.length > 0 ? (
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
                 {topLanguages.map(lang => (
@@ -359,7 +400,9 @@ function Home({ apiService, orgName, isActive }) {
               </Typography>
             )}
 
-            <Typography variant="h6" sx={{ mb: 2 }}>Most Used Topics</Typography>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Most Used Topics
+            </Typography>
             {topTopics.length > 0 ? (
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {topTopics.map(topic => (

@@ -21,12 +21,12 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [inactiveRepos, setInactiveRepos] = useState([]);
-  const [totalInactive, setTotalInactive] = useState(0);
+  const [_totalInactive, setTotalInactive] = useState(0);
   const [staleBranches, setStaleBranches] = useState([]);
   const [oldPRs, setOldPRs] = useState([]);
-  const [totalStaleBranchRepos, setTotalStaleBranchRepos] = useState(0);
-  const [totalOldPRRepos, setTotalOldPRRepos] = useState(0);
-  const [totalOldPRs, setTotalOldPRs] = useState(0);
+  const [_totalStaleBranchRepos, setTotalStaleBranchRepos] = useState(0);
+  const [_totalOldPRRepos, setTotalOldPRRepos] = useState(0);
+  const [_totalOldPRs, setTotalOldPRs] = useState(0);
   const [progress, setProgress] = useState({ current: 0, total: 0, repoName: '' });
   const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -68,7 +68,11 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
 
       for (let i = 0; i < activeRepos.length; i++) {
         const repo = activeRepos[i];
-        setProgress({ current: i + 1, total: activeRepos.length, repoName: `Activity: ${repo.name}` });
+        setProgress({
+          current: i + 1,
+          total: activeRepos.length,
+          repoName: `Activity: ${repo.name}`,
+        });
 
         const pushedAt = new Date(repo.pushed_at);
         const lastPR = await apiService.getLastPullRequest(orgName, repo.name);
@@ -118,7 +122,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
         // Fetch branches and PRs in parallel
         const [branches, openPRs] = await Promise.all([
           apiService.getRepoBranches(orgName, repo.name),
-          apiService.getOpenPullRequests(orgName, repo.name)
+          apiService.getOpenPullRequests(orgName, repo.name),
         ]);
 
         // Exclude the default branch from checks
@@ -136,7 +140,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
         } else {
           // Fetch all branch details in parallel
           const branchDetailsPromises = nonDefaultBranches.map(branch =>
-            apiService.getBranchDetails(orgName, repo.name, branch.name)
+            apiService.getBranchDetails(orgName, repo.name, branch.name),
           );
           const allBranchDetails = await Promise.all(branchDetailsPromises);
 
@@ -144,15 +148,14 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
           let staleBranchCount = 0;
           const authors = new Set();
 
-          allBranchDetails.forEach((branchDetails) => {
+          allBranchDetails.forEach(branchDetails => {
             if (branchDetails && branchDetails.commit) {
               const lastCommitDate = new Date(branchDetails.commit.commit.author.date);
-              const daysSinceCommit = Math.floor((new Date() - lastCommitDate) / (1000 * 60 * 60 * 24));
-
               if (lastCommitDate < cutoffDate) {
                 staleBranchCount++;
                 // Prefer GitHub login (unique) over git commit author name (can vary)
-                const authorIdentifier = branchDetails.commit.author?.login || branchDetails.commit.commit.author.name;
+                const authorIdentifier =
+                  branchDetails.commit.author?.login || branchDetails.commit.commit.author.name;
                 if (authorIdentifier) {
                   authors.add(authorIdentifier);
                 }
@@ -222,15 +225,20 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
       setHasLoaded(true);
 
       // Save to cache
-      saveToCache(orgName, 'cleanup', {
-        inactiveRepos: reposWithActivity,
-        totalInactive: reposWithActivity.length,
-        staleBranches: reposWithStaleBranches,
-        oldPRs: reposWithOldPRs,
-        totalStaleBranchRepos: reposWithStaleBranches.length,
-        totalOldPRRepos: reposWithOldPRs.length,
-        totalOldPRs: totalOldPRCount
-      }, config.cache.ttlHours);
+      saveToCache(
+        orgName,
+        'cleanup',
+        {
+          inactiveRepos: reposWithActivity,
+          totalInactive: reposWithActivity.length,
+          staleBranches: reposWithStaleBranches,
+          oldPRs: reposWithOldPRs,
+          totalStaleBranchRepos: reposWithStaleBranches.length,
+          totalOldPRRepos: reposWithOldPRs.length,
+          totalOldPRs: totalOldPRCount,
+        },
+        config.cache.ttlHours,
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -242,9 +250,10 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, hasLoaded, apiService, orgName]);
 
-  const formatDate = (date) => {
+  const formatDate = date => {
     if (!date) return 'N/A';
     // Handle both Date objects and date strings from cache
     const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -261,10 +270,20 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
+          gap: 2,
+        }}
+      >
         <CircularProgress />
         <Typography variant="body1">
-          Checking repository {progress.current} of {progress.total} (excluding archived & forked): {progress.repoName}
+          Checking repository {progress.current} of {progress.total} (excluding archived & forked):{' '}
+          {progress.repoName}
         </Typography>
         <LinearProgress
           variant="determinate"
@@ -278,11 +297,14 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" action={
-          <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
-            <RefreshIcon />
-          </IconButton>
-        }>
+        <Alert
+          severity="error"
+          action={
+            <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
+              <RefreshIcon />
+            </IconButton>
+          }
+        >
           Error loading data: {error}
         </Alert>
       </Box>
@@ -297,7 +319,8 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             Cleanup Needed
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Identifies inactive repositories, stale branches, and old open pull requests that may need attention or cleanup.
+            Identifies inactive repositories, stale branches, and old open pull requests that may
+            need attention or cleanup.
           </Typography>
         </Box>
         <Tooltip title="Reload data">
@@ -320,7 +343,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             {
               field: 'name',
               headerName: 'Repository Name',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.url} target="_blank" rel="noopener">
                   {row.name}
                 </Link>
@@ -329,21 +352,25 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             {
               field: 'lastCommitDate',
               headerName: 'Last Commit Date',
-              renderCell: (row) => formatDate(row.lastCommitDate),
+              renderCell: row => formatDate(row.lastCommitDate),
             },
             {
               field: 'lastPRDate',
               headerName: 'Last PR Date',
-              renderCell: (row) => formatDate(row.lastPRDate),
+              renderCell: row => formatDate(row.lastPRDate),
             },
             {
               field: 'daysInactive',
               headerName: 'Days Inactive',
-              renderCell: (row) => <><strong>{row.daysInactive}</strong> days</>,
+              renderCell: row => (
+                <>
+                  <strong>{row.daysInactive}</strong> days
+                </>
+              ),
             },
           ]}
           rows={inactiveRepos}
-          getRowId={(row) => row.name}
+          getRowId={row => row.name}
           emptyMessage="No inactive repositories found"
         />
       </Box>
@@ -356,14 +383,15 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
           Stale Branches
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Repositories with branches untouched for {config.thresholds.staleBranchDays}+ days (excluding default branches)
+          Repositories with branches untouched for {config.thresholds.staleBranchDays}+ days
+          (excluding default branches)
         </Typography>
         <DataTable
           columns={[
             {
               field: 'repoName',
               headerName: 'Repository',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.repoUrl} target="_blank" rel="noopener">
                   {row.repoName}
                 </Link>
@@ -372,17 +400,17 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             {
               field: 'staleBranchCount',
               headerName: 'Stale Branches',
-              renderCell: (row) => row.isWarning ? '-' : <strong>{row.staleBranchCount}</strong>,
+              renderCell: row => (row.isWarning ? '-' : <strong>{row.staleBranchCount}</strong>),
             },
             {
               field: 'totalBranches',
               headerName: 'Total Branches',
-              renderCell: (row) => row.isWarning ? '-' : row.totalBranches,
+              renderCell: row => (row.isWarning ? '-' : row.totalBranches),
             },
             {
               field: 'authors',
               headerName: 'Authors',
-              renderCell: (row) => {
+              renderCell: row => {
                 if (row.isWarning) {
                   return (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -403,7 +431,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             },
           ]}
           rows={staleBranches}
-          getRowId={(row) => row.repoName}
+          getRowId={row => row.repoName}
           emptyMessage="No stale branches found"
         />
       </Box>
@@ -423,7 +451,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             {
               field: 'repoName',
               headerName: 'Repository',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.repoUrl} target="_blank" rel="noopener">
                   {row.repoName}
                 </Link>
@@ -432,7 +460,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             {
               field: 'oldPRCount',
               headerName: 'Old PRs',
-              renderCell: (row) => <strong>{row.oldPRCount}</strong>,
+              renderCell: row => <strong>{row.oldPRCount}</strong>,
             },
             {
               field: 'totalPRs',
@@ -441,18 +469,19 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             {
               field: 'oldestPR',
               headerName: 'Oldest PR',
-              renderCell: (row) => row.oldestPR.number && (
-                <>
-                  <Link href={row.oldestPR.url} target="_blank" rel="noopener">
-                    #{row.oldestPR.number}
-                  </Link>
-                  {' '}({row.oldestPR.daysOpen} days)
-                </>
-              ),
+              renderCell: row =>
+                row.oldestPR.number && (
+                  <>
+                    <Link href={row.oldestPR.url} target="_blank" rel="noopener">
+                      #{row.oldestPR.number}
+                    </Link>{' '}
+                    ({row.oldestPR.daysOpen} days)
+                  </>
+                ),
             },
           ]}
           rows={oldPRs}
-          getRowId={(row) => row.repoName}
+          getRowId={row => row.repoName}
           emptyMessage="No old open pull requests found"
         />
       </Box>

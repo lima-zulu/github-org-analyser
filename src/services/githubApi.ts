@@ -1,31 +1,39 @@
 const GITHUB_API_BASE = 'https://api.github.com';
 
+interface GitHubApiError extends Error {
+  status?: number;
+  response?: Response;
+}
+
 /**
  * GitHub API Service
  * Handles all GitHub API interactions including repository details and branch comparison
  */
 class GitHubApiService {
-  constructor(token) {
+  private token: string;
+  private headers: Record<string, string>;
+
+  constructor(token: string) {
     this.token = token;
     this.headers = {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github.v3+json'
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3+json',
     };
   }
 
   /**
    * Make a GET request to GitHub API
    */
-  async get(endpoint, params = {}) {
+  async get(endpoint: string, params: Record<string, string | number> = {}) {
     const url = new URL(`${GITHUB_API_BASE}${endpoint}`);
-    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    Object.keys(params).forEach(key => url.searchParams.append(key, String(params[key])));
 
-    const response = await fetch(url, {
-      headers: this.headers
+    const response = await fetch(url.toString(), {
+      headers: this.headers,
     });
 
     if (!response.ok) {
-      const error = new Error(`GitHub API error: ${response.status}`);
+      const error: GitHubApiError = new Error(`GitHub API error: ${response.status}`);
       error.status = response.status;
       error.response = response;
       throw error;
@@ -41,8 +49,8 @@ class GitHubApiService {
     try {
       const user = await this.get('/user');
       return { valid: true, user };
-    } catch (error) {
-      return { valid: false, error: error.message };
+    } catch {
+      return { valid: false, error: (error as Error).message };
     }
   }
 
@@ -71,7 +79,7 @@ class GitHubApiService {
     while (hasMore) {
       const repos = await this.get(`/orgs/${org}/repos`, {
         per_page: 100,
-        page
+        page,
       });
 
       allRepos = allRepos.concat(repos);
@@ -93,7 +101,7 @@ class GitHubApiService {
     while (hasMore) {
       const members = await this.get(`/orgs/${org}/members`, {
         per_page: 100,
-        page
+        page,
       });
 
       allMembers = allMembers.concat(members);
@@ -113,10 +121,10 @@ class GitHubApiService {
         state: 'all',
         sort: 'updated',
         direction: 'desc',
-        per_page: 1
+        per_page: 1,
       });
       return prs.length > 0 ? prs[0] : null;
-    } catch (error) {
+    } catch {
       // If error (e.g., repo has no PRs), return null
       return null;
     }
@@ -134,13 +142,13 @@ class GitHubApiService {
       try {
         const branches = await this.get(`/repos/${owner}/${repo}/branches`, {
           per_page: 100,
-          page
+          page,
         });
 
         allBranches = allBranches.concat(branches);
         hasMore = branches.length === 100;
         page++;
-      } catch (error) {
+      } catch {
         // If error, stop pagination
         hasMore = false;
       }
@@ -155,7 +163,7 @@ class GitHubApiService {
   async getBranchDetails(owner, repo, branch) {
     try {
       return await this.get(`/repos/${owner}/${repo}/branches/${branch}`);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -173,13 +181,13 @@ class GitHubApiService {
         const prs = await this.get(`/repos/${owner}/${repo}/pulls`, {
           state: 'open',
           per_page: 100,
-          page
+          page,
         });
 
         allPRs = allPRs.concat(prs);
         hasMore = prs.length === 100;
         page++;
-      } catch (error) {
+      } catch {
         hasMore = false;
       }
     }
@@ -194,7 +202,7 @@ class GitHubApiService {
     try {
       await this.get(`/repos/${owner}/${repo}/branches/${branch}/protection`);
       return true; // 200 response means protected
-    } catch (error) {
+    } catch {
       if (error.status === 404) {
         return false; // 404 means not protected
       }
@@ -214,13 +222,13 @@ class GitHubApiService {
       try {
         const collaborators = await this.get(`/repos/${owner}/${repo}/collaborators`, {
           per_page: 100,
-          page
+          page,
         });
 
         allCollaborators = allCollaborators.concat(collaborators);
         hasMore = collaborators.length === 100;
         page++;
-      } catch (error) {
+      } catch {
         hasMore = false;
       }
     }
@@ -234,7 +242,7 @@ class GitHubApiService {
   async getAppBySlug(slug) {
     try {
       return await this.get(`/apps/${slug}`);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -246,7 +254,7 @@ class GitHubApiService {
     try {
       const response = await this.get(`/orgs/${org}/installations`);
       return response.installations || [];
-    } catch (error) {
+    } catch {
       // If error or no access, return empty array
       return [];
     }
@@ -264,13 +272,13 @@ class GitHubApiService {
       try {
         const collaborators = await this.get(`/orgs/${org}/outside_collaborators`, {
           per_page: 100,
-          page
+          page,
         });
 
         allCollaborators = allCollaborators.concat(collaborators);
         hasMore = collaborators.length === 100;
         page++;
-      } catch (error) {
+      } catch {
         hasMore = false;
       }
     }
@@ -281,7 +289,7 @@ class GitHubApiService {
   /**
    * Get repositories accessible by an outside collaborator
    */
-  async getCollaboratorRepos(org, username) {
+  async getCollaboratorRepos(_org: string, _username: string) {
     // Note: This requires checking each repo's collaborators
     // This is done in the component logic to avoid redundant API calls
     return [];
@@ -293,7 +301,7 @@ class GitHubApiService {
   async getUser(username) {
     try {
       return await this.get(`/users/${username}`);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -311,13 +319,13 @@ class GitHubApiService {
         const admins = await this.get(`/orgs/${org}/members`, {
           role: 'admin',
           per_page: 100,
-          page
+          page,
         });
 
         allAdmins = allAdmins.concat(admins);
         hasMore = admins.length === 100;
         page++;
-      } catch (error) {
+      } catch {
         hasMore = false;
       }
     }
@@ -337,13 +345,13 @@ class GitHubApiService {
       try {
         const teams = await this.get(`/repos/${owner}/${repo}/teams`, {
           per_page: 100,
-          page
+          page,
         });
 
         allTeams = allTeams.concat(teams);
         hasMore = teams.length === 100;
         page++;
-      } catch (error) {
+      } catch {
         hasMore = false;
       }
     }
@@ -365,13 +373,13 @@ class GitHubApiService {
         const collaborators = await this.get(`/repos/${owner}/${repo}/collaborators`, {
           affiliation: 'direct',
           per_page: 100,
-          page
+          page,
         });
 
         allCollaborators = allCollaborators.concat(collaborators);
         hasMore = collaborators.length === 100;
         page++;
-      } catch (error) {
+      } catch {
         hasMore = false;
       }
     }
@@ -385,7 +393,7 @@ class GitHubApiService {
   async getRepository(owner, repo) {
     try {
       return await this.get(`/repos/${owner}/${repo}`);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -397,7 +405,7 @@ class GitHubApiService {
   async getRepoLanguages(owner, repo) {
     try {
       return await this.get(`/repos/${owner}/${repo}/languages`);
-    } catch (error) {
+    } catch {
       return {};
     }
   }
@@ -408,7 +416,7 @@ class GitHubApiService {
   async compareBranches(owner, repo, base, head) {
     try {
       return await this.get(`/repos/${owner}/${repo}/compare/${base}...${head}`);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -428,11 +436,11 @@ class GitHubApiService {
       // Most repos won't have more than 100 open alerts
       const alerts = await this.get(`/repos/${owner}/${repo}/dependabot/alerts`, {
         state,
-        per_page: 100
+        per_page: 100,
       });
 
       return Array.isArray(alerts) ? alerts : [];
-    } catch (error) {
+    } catch {
       // Return empty array if no access or no alerts
       return [];
     }
@@ -446,14 +454,14 @@ class GitHubApiService {
    * Get billing usage for an organization (new billing platform)
    * Returns detailed usage data for all products
    */
-  async getBillingUsageDetails(org, options = {}) {
+  async getBillingUsageDetails(org: string, options: { year?: number; month?: number } = {}) {
     try {
-      const params = {};
+      const params: Record<string, string | number> = {};
       if (options.year) params.year = options.year;
       if (options.month) params.month = options.month;
       // Use the new billing platform endpoint format
       return await this.get(`/organizations/${org}/settings/billing/usage`, params);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -462,10 +470,10 @@ class GitHubApiService {
    * Get Copilot billing for an organization
    * Returns seat allocation and usage
    */
-  async getCopilotBilling(org) {
+  async getCopilotBilling(org: string) {
     try {
       return await this.get(`/orgs/${org}/copilot/billing`);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -478,12 +486,10 @@ class GitHubApiService {
       // Use new billing platform endpoint format
       const response = await this.get(`/organizations/${org}/settings/billing/budgets`);
       return response.budgets || response || [];
-    } catch (error) {
+    } catch {
       return [];
     }
   }
-
 }
-
 
 export default GitHubApiService;

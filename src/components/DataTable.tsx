@@ -46,7 +46,7 @@ function DataTable({
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
+  const handleChangeRowsPerPage = event => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -58,17 +58,14 @@ function DataTable({
     return row[getRowId] ?? index;
   };
 
-  const paginatedRows = rows.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  const paginatedRows = rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
     <TableContainer component={Paper}>
       <Table>
         <TableHead>
           <TableRow>
-            {columns.map((column) => (
+            {columns.map(column => (
               <TableCell
                 key={column.field}
                 align={column.align || 'left'}
@@ -91,7 +88,7 @@ function DataTable({
           ) : (
             paginatedRows.map((row, index) => (
               <TableRow key={getRowKey(row, index)}>
-                {columns.map((column) => (
+                {columns.map(column => (
                   <TableCell key={column.field} align={column.align || 'left'}>
                     {column.renderCell ? column.renderCell(row) : row[column.field]}
                   </TableCell>
@@ -103,13 +100,13 @@ function DataTable({
       </Table>
       {rows.length > 0 && (
         <TablePagination
-            rowsPerPageOptions={rowsPerPageOptions}
-            component="div"
-            count={rows.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={rowsPerPageOptions}
+          component="div"
+          count={rows.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
         />
       )}
     </TableContainer>

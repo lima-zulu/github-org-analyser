@@ -20,12 +20,12 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
   const config = getConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [orgData, setOrgData] = useState(null);
+  const [_orgData, setOrgData] = useState(null);
   const [orgAdmins, setOrgAdmins] = useState([]);
   const [installedApps, setInstalledApps] = useState([]);
   const [outsideCollaborators, setOutsideCollaborators] = useState([]);
-  const [totalApps, setTotalApps] = useState(0);
-  const [totalOutsideCollabs, setTotalOutsideCollabs] = useState(0);
+  const [_totalApps, setTotalApps] = useState(0);
+  const [_totalOutsideCollabs, setTotalOutsideCollabs] = useState(0);
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const fetchData = async (skipCache = false) => {
@@ -59,10 +59,10 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
 
       // Fetch full details for each admin to get names
       const adminsWithDetails = await Promise.all(
-        adminsList.map(async (admin) => {
+        adminsList.map(async admin => {
           const fullDetails = await apiService.getUser(admin.login);
           return fullDetails || admin;
-        })
+        }),
       );
 
       // Get installed apps (Feature 7)
@@ -70,7 +70,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
 
       // Fetch full details for each app to get owner information
       const appsWithOwner = await Promise.all(
-        apps.map(async (app) => {
+        apps.map(async app => {
           const appDetails = await apiService.getAppBySlug(app.app_slug);
 
           // If app details fetch fails (404), it's likely a private internal app
@@ -81,9 +81,9 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
           return {
             ...app,
             ownerLogin,
-            ownerType
+            ownerType,
           };
-        })
+        }),
       );
 
       // Get outside collaborators (Feature 8)
@@ -95,7 +95,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
 
       for (const collab of outsideCollabs) {
         // Count repos this collaborator has access to
-        let repoList = [];
+        const repoList = [];
         for (const repo of repos) {
           const collaborators = await apiService.getRepoCollaborators(orgName, repo.name);
           const hasAccess = collaborators.some(c => c.login === collab.login);
@@ -130,14 +130,19 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
       setOrgAdmins(adminsWithDetails);
 
       // Save to cache
-      saveToCache(orgName, 'security-org', {
-        orgData: org,
-        orgAdmins: adminsWithDetails,
-        installedApps,
-        outsideCollaborators,
-        totalApps,
-        totalOutsideCollabs
-      }, config.cache.ttlHours);
+      saveToCache(
+        orgName,
+        'security-org',
+        {
+          orgData: org,
+          orgAdmins: adminsWithDetails,
+          installedApps,
+          outsideCollaborators,
+          totalApps,
+          totalOutsideCollabs,
+        },
+        config.cache.ttlHours,
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -149,9 +154,10 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, hasLoaded, apiService, orgName]);
 
-  const formatDate = (date) => {
+  const formatDate = date => {
     if (!date) return 'N/A';
     // Handle both Date objects and date strings from cache
     const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -168,11 +174,18 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
+          gap: 2,
+        }}
+      >
         <CircularProgress />
-        <Typography variant="body1">
-          Loading organisation data...
-        </Typography>
+        <Typography variant="body1">Loading organisation data...</Typography>
       </Box>
     );
   }
@@ -180,11 +193,14 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" action={
-          <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
-            <RefreshIcon />
-          </IconButton>
-        }>
+        <Alert
+          severity="error"
+          action={
+            <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
+              <RefreshIcon />
+            </IconButton>
+          }
+        >
           Error loading data: {error}
         </Alert>
       </Box>
@@ -199,8 +215,8 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             Governance (Organisation Level)
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Organisation-wide governance metrics including org owners, admin users, outside collaborators,
-            and installed applications.
+            Organisation-wide governance metrics including org owners, admin users, outside
+            collaborators, and installed applications.
           </Typography>
         </Box>
         <Tooltip title="Reload data">
@@ -224,13 +240,9 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             {
               field: 'login',
               headerName: 'User',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar
-                    src={row.avatar_url}
-                    alt={row.login}
-                    sx={{ width: 40, height: 40 }}
-                  />
+                  <Avatar src={row.avatar_url} alt={row.login} sx={{ width: 40, height: 40 }} />
                   <Box>
                     <Link href={row.html_url} target="_blank" rel="noopener">
                       {row.login}
@@ -246,7 +258,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             },
           ]}
           rows={orgAdmins}
-          getRowId={(row) => row.login}
+          getRowId={row => row.login}
           emptyMessage="No organisation admins found"
         />
       </Box>
@@ -266,7 +278,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             {
               field: 'login',
               headerName: 'Username',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.url} target="_blank" rel="noopener">
                   {row.login}
                 </Link>
@@ -276,7 +288,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             {
               field: 'repos',
               headerName: 'Repositories',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Tooltip title={row.repos.join(', ')}>
                   <span>{row.repoCount} repos</span>
                 </Tooltip>
@@ -284,7 +296,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             },
           ]}
           rows={outsideCollaborators}
-          getRowId={(row) => row.login}
+          getRowId={row => row.login}
           emptyMessage="No outside collaborators found"
         />
       </Box>
@@ -304,7 +316,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             {
               field: 'app_slug',
               headerName: 'App Name',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.html_url} target="_blank" rel="noopener">
                   {row.app_slug || 'Unknown App'}
                 </Link>
@@ -313,46 +325,50 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
             {
               field: 'ownerLogin',
               headerName: 'Owner',
-              renderCell: (row) => row.ownerLogin ? (
-                <Link
-                  href={`https://github.com/${row.ownerLogin}`}
-                  target="_blank"
-                  rel="noopener"
-                >
-                  {row.ownerLogin}
-                </Link>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  Unknown
-                </Typography>
-              ),
+              renderCell: row =>
+                row.ownerLogin ? (
+                  <Link
+                    href={`https://github.com/${row.ownerLogin}`}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {row.ownerLogin}
+                  </Link>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Unknown
+                  </Typography>
+                ),
             },
             {
               field: 'type',
               headerName: 'Type',
-              renderCell: (row) => {
+              renderCell: row => {
                 const isExternal = row.ownerLogin && row.ownerLogin !== orgName;
                 const isInternal = row.ownerLogin && row.ownerLogin === orgName;
                 if (isInternal) return <Chip label="Internal" size="small" color="success" />;
                 if (isExternal) return <Chip label="External" size="small" color="warning" />;
-                return <Typography variant="body2" color="text.secondary">-</Typography>;
+                return (
+                  <Typography variant="body2" color="text.secondary">
+                    -
+                  </Typography>
+                );
               },
             },
             {
               field: 'created_at',
               headerName: 'Installed Date',
-              renderCell: (row) => formatDate(row.created_at),
+              renderCell: row => formatDate(row.created_at),
             },
             {
               field: 'repository_selection',
               headerName: 'Repository Access',
-              renderCell: (row) => row.repository_selection === 'all'
-                ? 'All repositories'
-                : 'Selected repositories',
+              renderCell: row =>
+                row.repository_selection === 'all' ? 'All repositories' : 'Selected repositories',
             },
           ]}
           rows={installedApps}
-          getRowId={(row) => row.id}
+          getRowId={row => row.id}
           emptyMessage="No GitHub Apps installed"
         />
       </Box>

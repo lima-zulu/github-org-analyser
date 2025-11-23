@@ -5,6 +5,7 @@ A React-based web application for analysing GitHub organisations to identify sec
 ## Overview
 
 This tool provides insights into your GitHub organisation across multiple dimensions:
+
 - **Security & Governance** - Organisation admins, installed apps, outside collaborators, branch protection, delegated repository ownership
 - **Cleanup Opportunities** - Stale branches, old pull requests
 - **Repository Health** - Inactive repositories, forked repositories, repository activity patterns
@@ -21,11 +22,13 @@ The application uses GitHub's REST API with fine-grained Personal Access Tokens 
 ## Quick Start
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Run development server:**
+
    ```bash
    npm run dev
    ```
@@ -50,6 +53,7 @@ The application uses GitHub's REST API with fine-grained Personal Access Tokens 
 ## Configuration
 
 Edit `src/config.json` to adjust:
+
 - Display limits (max items shown per section)
 - Cache TTL (default 24 hours)
 - Thresholds (stale branch days, old PR days, etc.)

@@ -26,7 +26,7 @@ export function saveToCache(orgName, dataType, data, ttlHours) {
     const cacheObject = {
       data: data,
       timestamp: now,
-      expiresAt: now + (ttlHours * 60 * 60 * 1000)
+      expiresAt: now + ttlHours * 60 * 60 * 1000,
     };
     localStorage.setItem(key, JSON.stringify(cacheObject));
   } catch (e) {
@@ -102,7 +102,7 @@ export function clearExpiredCaches() {
           if (now > cacheObject.expiresAt) {
             keysToRemove.push(key);
           }
-        } catch (e) {
+        } catch {
           // Invalid cache entry, mark for removal
           keysToRemove.push(key);
         }

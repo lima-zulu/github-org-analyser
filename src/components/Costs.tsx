@@ -55,16 +55,11 @@ function Costs({ apiService, orgName, isActive }) {
       const currentYear = now.getFullYear();
 
       // Fetch all billing data in parallel
-      const [
-        org,
-        copilot,
-        budgetsList,
-        billingUsageData
-      ] = await Promise.all([
+      const [org, copilot, budgetsList, billingUsageData] = await Promise.all([
         apiService.getOrganization(orgName),
         apiService.getCopilotBilling(orgName),
         apiService.getBudgets(orgName),
-        apiService.getBillingUsageDetails(orgName)
+        apiService.getBillingUsageDetails(orgName),
       ]);
 
       const budgetsData = Array.isArray(budgetsList) ? budgetsList : [];
@@ -108,8 +103,8 @@ function Costs({ apiService, orgName, isActive }) {
           breakdown: {
             ubuntu: Math.round(ubuntuMinutes),
             macos: Math.round(macosMinutes),
-            windows: Math.round(windowsMinutes)
-          }
+            windows: Math.round(windowsMinutes),
+          },
         };
       }
 
@@ -117,12 +112,17 @@ function Costs({ apiService, orgName, isActive }) {
       setHasLoaded(true);
 
       // Save to cache
-      saveToCache(orgName, 'costs', {
-        orgData: org,
-        copilotBilling: copilot,
-        budgets: budgetsData,
-        actionsBilling: actionsData
-      }, config.cache.ttlHours);
+      saveToCache(
+        orgName,
+        'costs',
+        {
+          orgData: org,
+          copilotBilling: copilot,
+          budgets: budgetsData,
+          actionsBilling: actionsData,
+        },
+        config.cache.ttlHours,
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -134,9 +134,10 @@ function Costs({ apiService, orgName, isActive }) {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, hasLoaded, apiService, orgName]);
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = amount => {
     if (amount === null || amount === undefined) return '-';
     return `$${parseFloat(amount).toFixed(2)}`;
   };
@@ -151,11 +152,18 @@ function Costs({ apiService, orgName, isActive }) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
+          gap: 2,
+        }}
+      >
         <CircularProgress />
-        <Typography variant="body1">
-          Loading costs data...
-        </Typography>
+        <Typography variant="body1">Loading costs data...</Typography>
       </Box>
     );
   }
@@ -163,11 +171,14 @@ function Costs({ apiService, orgName, isActive }) {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" action={
-          <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
-            <RefreshIcon />
-          </IconButton>
-        }>
+        <Alert
+          severity="error"
+          action={
+            <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
+              <RefreshIcon />
+            </IconButton>
+          }
+        >
           Error loading data: {error}
         </Alert>
       </Box>
@@ -175,17 +186,21 @@ function Costs({ apiService, orgName, isActive }) {
   }
 
   // Calculate seat usage
-  const orgSeats = orgData?.plan ? {
-    total: orgData.plan.seats || 0,
-    filled: orgData.plan.filled_seats || 0,
-    unused: (orgData.plan.seats || 0) - (orgData.plan.filled_seats || 0)
-  } : null;
+  const orgSeats = orgData?.plan
+    ? {
+        total: orgData.plan.seats || 0,
+        filled: orgData.plan.filled_seats || 0,
+        unused: (orgData.plan.seats || 0) - (orgData.plan.filled_seats || 0),
+      }
+    : null;
 
-  const copilotSeats = copilotBilling ? {
-    total: copilotBilling.seat_breakdown?.total || 0,
-    active: copilotBilling.seat_breakdown?.active_this_cycle || 0,
-    inactive: copilotBilling.seat_breakdown?.inactive_this_cycle || 0
-  } : null;
+  const copilotSeats = copilotBilling
+    ? {
+        total: copilotBilling.seat_breakdown?.total || 0,
+        active: copilotBilling.seat_breakdown?.active_this_cycle || 0,
+        inactive: copilotBilling.seat_breakdown?.inactive_this_cycle || 0,
+      }
+    : null;
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
@@ -213,15 +228,22 @@ function Costs({ apiService, orgName, isActive }) {
         <Card sx={{ maxWidth: 400 }}>
           <CardContent>
             <Typography variant="h6">
-              GitHub {orgData?.plan?.name ? orgData.plan.name.charAt(0).toUpperCase() + orgData.plan.name.slice(1) : '-'}
+              GitHub{' '}
+              {orgData?.plan?.name
+                ? orgData.plan.name.charAt(0).toUpperCase() + orgData.plan.name.slice(1)
+                : '-'}
             </Typography>
             {orgSeats && orgSeats.total > 0 && (
               <>
                 <Typography variant="h4">
-                  {formatCurrency(orgSeats.total * config.billing.pricePerUserMonth)} <Typography component="span" variant="body2" color="text.secondary">per month</Typography>
+                  {formatCurrency(orgSeats.total * config.billing.pricePerUserMonth)}{' '}
+                  <Typography component="span" variant="body2" color="text.secondary">
+                    per month
+                  </Typography>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {orgSeats.total} licenses · {formatCurrency(config.billing.pricePerUserMonth)} per user/month
+                  {orgSeats.total} licenses · {formatCurrency(config.billing.pricePerUserMonth)} per
+                  user/month
                 </Typography>
               </>
             )}
@@ -246,22 +268,35 @@ function Costs({ apiService, orgName, isActive }) {
                 {orgSeats ? (
                   <Grid container spacing={2}>
                     <Grid size={4}>
-                      <Typography variant="body2" color="text.secondary">Total</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Total
+                      </Typography>
                       <Typography variant="h5">{orgSeats.total}</Typography>
                     </Grid>
                     <Grid size={4}>
-                      <Typography variant="body2" color="text.secondary">Used</Typography>
-                      <Typography variant="h5" color="success.main">{orgSeats.filled}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Used
+                      </Typography>
+                      <Typography variant="h5" color="success.main">
+                        {orgSeats.filled}
+                      </Typography>
                     </Grid>
                     <Grid size={4}>
-                      <Typography variant="body2" color="text.secondary">Unused</Typography>
-                      <Typography variant="h5" color={orgSeats.unused > 0 ? 'warning.main' : 'text.primary'}>
+                      <Typography variant="body2" color="text.secondary">
+                        Unused
+                      </Typography>
+                      <Typography
+                        variant="h5"
+                        color={orgSeats.unused > 0 ? 'warning.main' : 'text.primary'}
+                      >
                         {orgSeats.unused}
                       </Typography>
                     </Grid>
                   </Grid>
                 ) : (
-                  <Typography variant="body2" color="text.secondary">Not available</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Not available
+                  </Typography>
                 )}
               </CardContent>
             </Card>
@@ -275,22 +310,35 @@ function Costs({ apiService, orgName, isActive }) {
                 {copilotSeats ? (
                   <Grid container spacing={2}>
                     <Grid size={4}>
-                      <Typography variant="body2" color="text.secondary">Total</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Total
+                      </Typography>
                       <Typography variant="h5">{copilotSeats.total}</Typography>
                     </Grid>
                     <Grid size={4}>
-                      <Typography variant="body2" color="text.secondary">Active</Typography>
-                      <Typography variant="h5" color="success.main">{copilotSeats.active}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Active
+                      </Typography>
+                      <Typography variant="h5" color="success.main">
+                        {copilotSeats.active}
+                      </Typography>
                     </Grid>
                     <Grid size={4}>
-                      <Typography variant="body2" color="text.secondary">Inactive</Typography>
-                      <Typography variant="h5" color={copilotSeats.inactive > 0 ? 'warning.main' : 'text.primary'}>
+                      <Typography variant="body2" color="text.secondary">
+                        Inactive
+                      </Typography>
+                      <Typography
+                        variant="h5"
+                        color={copilotSeats.inactive > 0 ? 'warning.main' : 'text.primary'}
+                      >
                         {copilotSeats.inactive}
                       </Typography>
                     </Grid>
                   </Grid>
                 ) : (
-                  <Typography variant="body2" color="text.secondary">Not available</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Not available
+                  </Typography>
                 )}
               </CardContent>
             </Card>
@@ -313,32 +361,34 @@ function Costs({ apiService, orgName, isActive }) {
             {
               field: 'product',
               headerName: 'Product',
-              renderCell: (row) => {
+              renderCell: row => {
                 const sku = row.budget_product_sku || '';
                 // Format product names nicely
                 const productNames = {
-                  'actions': 'Actions',
-                  'packages': 'Packages',
-                  'codespaces': 'Codespaces',
-                  'git_lfs': 'Git LFS',
-                  'shared_storage': 'Shared Storage'
+                  actions: 'Actions',
+                  packages: 'Packages',
+                  codespaces: 'Codespaces',
+                  git_lfs: 'Git LFS',
+                  shared_storage: 'Shared Storage',
                 };
-                return productNames[sku] || sku.charAt(0).toUpperCase() + sku.slice(1).replace(/_/g, ' ');
-              }
+                return (
+                  productNames[sku] || sku.charAt(0).toUpperCase() + sku.slice(1).replace(/_/g, ' ')
+                );
+              },
             },
             {
               field: 'amount_spent',
               headerName: 'Spent',
-              renderCell: (row) => formatCurrency(row.amount_spent ?? 0)
+              renderCell: row => formatCurrency(row.amount_spent ?? 0),
             },
             {
               field: 'budget_amount',
               headerName: 'Budget',
-              renderCell: (row) => formatCurrency(row.budget_amount ?? 0)
+              renderCell: row => formatCurrency(row.budget_amount ?? 0),
             },
           ]}
           rows={budgets}
-          getRowId={(row) => row.id || row.product || Math.random().toString()}
+          getRowId={row => row.id || row.product || Math.random().toString()}
           emptyMessage="No budgets configured"
         />
       </Box>
@@ -358,9 +408,14 @@ function Costs({ apiService, orgName, isActive }) {
             <CardContent>
               <Grid container spacing={3}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography variant="subtitle2" gutterBottom>Minutes</Typography>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Minutes
+                  </Typography>
                   <Typography variant="h4">
-                    {actionsBilling.minutes?.toLocaleString() || 0} <Typography component="span" variant="body1" color="text.secondary">min used</Typography>
+                    {actionsBilling.minutes?.toLocaleString() || 0}{' '}
+                    <Typography component="span" variant="body1" color="text.secondary">
+                      min used
+                    </Typography>
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     / {actionsBilling.included?.toLocaleString() || 0} min included
@@ -372,7 +427,9 @@ function Costs({ apiService, orgName, isActive }) {
                   )}
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography variant="subtitle2" gutterBottom>By Runner OS</Typography>
+                  <Typography variant="subtitle2" gutterBottom>
+                    By Runner OS
+                  </Typography>
                   <Box>
                     <Typography variant="body2">
                       Ubuntu: {actionsBilling.breakdown?.ubuntu?.toLocaleString() || 0} mins

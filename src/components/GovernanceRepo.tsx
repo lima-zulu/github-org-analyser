@@ -24,15 +24,15 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [forkedRepos, setForkedRepos] = useState([]);
-  const [totalForks, setTotalForks] = useState(0);
+  const [_totalForks, setTotalForks] = useState(0);
   const [unprotectedRepos, setUnprotectedRepos] = useState([]);
   const [noAdminRepos, setNoAdminRepos] = useState([]);
-  const [totalUnprotected, setTotalUnprotected] = useState(0);
-  const [totalNoAdmin, setTotalNoAdmin] = useState(0);
+  const [_totalUnprotected, setTotalUnprotected] = useState(0);
+  const [_totalNoAdmin, setTotalNoAdmin] = useState(0);
   const [progress, setProgress] = useState({ current: 0, total: 0, repoName: '' });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [reposWithAlerts, setReposWithAlerts] = useState([]);
-  const [totalReposWithAlerts, setTotalReposWithAlerts] = useState(0);
+  const [_totalReposWithAlerts, setTotalReposWithAlerts] = useState(0);
 
   const fetchData = async (skipCache = false) => {
     if (!apiService || !orgName) return;
@@ -72,7 +72,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
 
         const [fullRepo, languages] = await Promise.all([
           apiService.getRepository(orgName, repo.name),
-          apiService.getRepoLanguages(orgName, repo.name)
+          apiService.getRepoLanguages(orgName, repo.name),
         ]);
 
         // Get top languages sorted by bytes
@@ -107,7 +107,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             orgName,
             repo.name,
             `${sourceOwner}:${source.default_branch}`,
-            fullRepo.default_branch
+            fullRepo.default_branch,
           );
           if (comparison) {
             commitsBehind = comparison.behind_by;
@@ -123,12 +123,14 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
           description: repo.description || 'No description',
           source: {
             name: source.full_name,
-            url: source.html_url
+            url: source.html_url,
           },
-          parent: fullRepo.parent ? {
-            name: fullRepo.parent.full_name,
-            url: fullRepo.parent.html_url
-          } : null,
+          parent: fullRepo.parent
+            ? {
+                name: fullRepo.parent.full_name,
+                url: fullRepo.parent.html_url,
+              }
+            : null,
           sourceLastUpdated: source.pushed_at,
           forkLastPushed: repo.pushed_at,
           sourceStars: source.stargazers_count,
@@ -160,10 +162,12 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
         try {
           // Fetch all data in parallel for this repo
           const [isProtected, teams, directCollaborators, dependabotAlerts] = await Promise.all([
-            apiService.isBranchProtected(orgName, repo.name, repo.default_branch).catch(() => false),
+            apiService
+              .isBranchProtected(orgName, repo.name, repo.default_branch)
+              .catch(() => false),
             apiService.getRepoTeams(orgName, repo.name).catch(() => []),
             apiService.getRepoDirectCollaborators(orgName, repo.name).catch(() => []),
-            apiService.getDependabotAlerts(orgName, repo.name, 'open').catch(() => [])
+            apiService.getDependabotAlerts(orgName, repo.name, 'open').catch(() => []),
           ]);
 
           // Check branch protection
@@ -179,8 +183,8 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
 
           // Check for delegated admin access
           const adminTeams = teams.filter(team => team.permission === 'admin');
-          const adminCollaborators = directCollaborators.filter(collab =>
-            collab.permissions && collab.permissions.admin === true
+          const adminCollaborators = directCollaborators.filter(
+            collab => collab.permissions && collab.permissions.admin === true,
           );
 
           const totalExplicitAdmins = adminTeams.length + adminCollaborators.length;
@@ -200,8 +204,11 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             // Count by severity
             const severityCounts = { critical: 0, high: 0, medium: 0, low: 0 };
             dependabotAlerts.forEach(alert => {
-              const severity = alert.security_advisory?.severity || alert.security_vulnerability?.severity || 'low';
-              if (severityCounts.hasOwnProperty(severity)) {
+              const severity =
+                alert.security_advisory?.severity ||
+                alert.security_vulnerability?.severity ||
+                'low';
+              if (severity in severityCounts) {
                 severityCounts[severity]++;
               }
             });
@@ -241,16 +248,21 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
       setHasLoaded(true);
 
       // Save to cache
-      saveToCache(orgName, 'governance-repo', {
-        forkedRepos: forksWithDetails,
-        totalForks: forksWithDetails.length,
-        unprotectedRepos: unprotected,
-        noAdminRepos: noAdmin,
-        totalUnprotected: unprotected.length,
-        totalNoAdmin: noAdmin.length,
-        reposWithAlerts: withAlerts,
-        totalReposWithAlerts: withAlerts.length
-      }, config.cache.ttlHours);
+      saveToCache(
+        orgName,
+        'governance-repo',
+        {
+          forkedRepos: forksWithDetails,
+          totalForks: forksWithDetails.length,
+          unprotectedRepos: unprotected,
+          noAdminRepos: noAdmin,
+          totalUnprotected: unprotected.length,
+          totalNoAdmin: noAdmin.length,
+          reposWithAlerts: withAlerts,
+          totalReposWithAlerts: withAlerts.length,
+        },
+        config.cache.ttlHours,
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -262,15 +274,16 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, hasLoaded, apiService, orgName]);
 
-  const formatDate = (date) => {
+  const formatDate = date => {
     if (!date) return 'N/A';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return dateObj.toLocaleDateString();
   };
 
-  const formatRelativeTime = (date) => {
+  const formatRelativeTime = date => {
     if (!date) return 'N/A';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const days = Math.floor((new Date() - dateObj) / (1000 * 60 * 60 * 24));
@@ -291,10 +304,20 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
+          gap: 2,
+        }}
+      >
         <CircularProgress />
         <Typography variant="body1">
-          Checking repository {progress.current} of {progress.total} (excluding archived & forked): {progress.repoName}
+          Checking repository {progress.current} of {progress.total} (excluding archived & forked):{' '}
+          {progress.repoName}
         </Typography>
         <LinearProgress
           variant="determinate"
@@ -308,11 +331,14 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" action={
-          <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
-            <RefreshIcon />
-          </IconButton>
-        }>
+        <Alert
+          severity="error"
+          action={
+            <IconButton color="inherit" size="small" onClick={() => fetchData(true)}>
+              <RefreshIcon />
+            </IconButton>
+          }
+        >
           Error loading data: {error}
         </Alert>
       </Box>
@@ -327,8 +353,8 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             Governance (Repository Level)
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Identifies governance issues at the repository level, including external forks, unprotected branches
-            and repositories lacking explicit admin oversight.
+            Identifies governance issues at the repository level, including external forks,
+            unprotected branches and repositories lacking explicit admin oversight.
           </Typography>
         </Box>
         <Tooltip title="Reload data">
@@ -351,14 +377,16 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'name',
               headerName: 'Repository Name',
-              renderCell: (row) => (
+              renderCell: row => (
                 <>
                   <Link href={row.url} target="_blank" rel="noopener">
                     {row.name}
                   </Link>
                   {row.description && (
                     <Typography variant="caption" display="block" color="text.secondary">
-                      {row.description.length > 80 ? row.description.substring(0, 80) + '...' : row.description}
+                      {row.description.length > 80
+                        ? row.description.substring(0, 80) + '...'
+                        : row.description}
                     </Typography>
                   )}
                 </>
@@ -367,22 +395,25 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'source',
               headerName: 'Forked From',
-              renderCell: (row) => row.source ? (
-                <Link href={row.source.url} target="_blank" rel="noopener">
-                  {row.source.name}
-                </Link>
-              ) : row.parent ? (
-                <Link href={row.parent.url} target="_blank" rel="noopener">
-                  {row.parent.name}
-                </Link>
-              ) : (
-                <Typography variant="body2" color="text.secondary">Unknown</Typography>
-              ),
+              renderCell: row =>
+                row.source ? (
+                  <Link href={row.source.url} target="_blank" rel="noopener">
+                    {row.source.name}
+                  </Link>
+                ) : row.parent ? (
+                  <Link href={row.parent.url} target="_blank" rel="noopener">
+                    {row.parent.name}
+                  </Link>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Unknown
+                  </Typography>
+                ),
             },
             {
               field: 'visibility',
               headerName: 'Visibility',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Chip
                   label={row.visibility}
                   size="small"
@@ -393,37 +424,41 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'languages',
               headerName: 'Languages',
-              renderCell: (row) => row.languages && row.languages.length > 0 ? (
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {row.languages.map((lang) => (
-                    <Chip key={lang} label={lang} size="small" variant="outlined" />
-                  ))}
-                </Box>
-              ) : (
-                <Typography variant="body2" color="text.secondary">-</Typography>
-              ),
+              renderCell: row =>
+                row.languages && row.languages.length > 0 ? (
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                    {row.languages.map(lang => (
+                      <Chip key={lang} label={lang} size="small" variant="outlined" />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    -
+                  </Typography>
+                ),
             },
             {
               field: 'sourceLastUpdated',
               headerName: 'Source Last Updated',
-              renderCell: (row) => row.sourceLastUpdated ? (
-                <Tooltip title={formatDate(row.sourceLastUpdated)}>
-                  <Typography variant="body2">
-                    {formatRelativeTime(row.sourceLastUpdated)}
+              renderCell: row =>
+                row.sourceLastUpdated ? (
+                  <Tooltip title={formatDate(row.sourceLastUpdated)}>
+                    <Typography variant="body2">
+                      {formatRelativeTime(row.sourceLastUpdated)}
+                    </Typography>
+                  </Tooltip>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    N/A
                   </Typography>
-                </Tooltip>
-              ) : (
-                <Typography variant="body2" color="text.secondary">N/A</Typography>
-              ),
+                ),
             },
             {
               field: 'forkLastPushed',
               headerName: 'Fork Last Updated',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Tooltip title={formatDate(row.forkLastPushed)}>
-                  <Typography variant="body2">
-                    {formatRelativeTime(row.forkLastPushed)}
-                  </Typography>
+                  <Typography variant="body2">{formatRelativeTime(row.forkLastPushed)}</Typography>
                 </Tooltip>
               ),
             },
@@ -431,22 +466,33 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
               field: 'commitsBehind',
               headerName: 'Commits Behind',
               align: 'center',
-              renderCell: (row) => row.commitsBehind !== null ? (
-                <Chip
-                  label={row.commitsBehind === 0 ? 'Up to date' : `${row.commitsBehind} commits`}
-                  size="small"
-                  color={row.commitsBehind === 0 ? 'success' : row.commitsBehind > 10 ? 'error' : 'warning'}
-                />
-              ) : (
-                <Typography variant="body2" color="text.secondary">N/A</Typography>
-              ),
+              renderCell: row =>
+                row.commitsBehind !== null ? (
+                  <Chip
+                    label={row.commitsBehind === 0 ? 'Up to date' : `${row.commitsBehind} commits`}
+                    size="small"
+                    color={
+                      row.commitsBehind === 0
+                        ? 'success'
+                        : row.commitsBehind > 10
+                          ? 'error'
+                          : 'warning'
+                    }
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    N/A
+                  </Typography>
+                ),
             },
             {
               field: 'sourceStats',
               headerName: 'Source Stats',
               align: 'center',
-              renderCell: (row) => (
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
+              renderCell: row => (
+                <Box
+                  sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}
+                >
                   <Tooltip title="Stars">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <StarIcon fontSize="small" sx={{ color: 'text.secondary' }} />
@@ -464,7 +510,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             },
           ]}
           rows={forkedRepos}
-          getRowId={(row) => row.name}
+          getRowId={row => row.name}
           emptyMessage="No forked repositories found"
         />
       </Box>
@@ -484,7 +530,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'name',
               headerName: 'Repository Name',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.alertsUrl} target="_blank" rel="noopener">
                   {row.name}
                 </Link>
@@ -494,54 +540,68 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
               field: 'totalAlerts',
               headerName: 'Total',
               align: 'center',
-              renderCell: (row) => (
-                <Chip label={row.totalAlerts} size="small" color="default" />
-              ),
+              renderCell: row => <Chip label={row.totalAlerts} size="small" color="default" />,
             },
             {
               field: 'critical',
               headerName: 'Critical',
               align: 'center',
-              renderCell: (row) => row.critical > 0 ? (
-                <Chip label={row.critical} size="small" color="error" />
-              ) : (
-                <Typography variant="body2" color="text.secondary">-</Typography>
-              ),
+              renderCell: row =>
+                row.critical > 0 ? (
+                  <Chip label={row.critical} size="small" color="error" />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    -
+                  </Typography>
+                ),
             },
             {
               field: 'high',
               headerName: 'High',
               align: 'center',
-              renderCell: (row) => row.high > 0 ? (
-                <Chip label={row.high} size="small" color="warning" />
-              ) : (
-                <Typography variant="body2" color="text.secondary">-</Typography>
-              ),
+              renderCell: row =>
+                row.high > 0 ? (
+                  <Chip label={row.high} size="small" color="warning" />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    -
+                  </Typography>
+                ),
             },
             {
               field: 'medium',
               headerName: 'Medium',
               align: 'center',
-              renderCell: (row) => row.medium > 0 ? (
-                <Chip label={row.medium} size="small" sx={{ bgcolor: 'info.main', color: 'white' }} />
-              ) : (
-                <Typography variant="body2" color="text.secondary">-</Typography>
-              ),
+              renderCell: row =>
+                row.medium > 0 ? (
+                  <Chip
+                    label={row.medium}
+                    size="small"
+                    sx={{ bgcolor: 'info.main', color: 'white' }}
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    -
+                  </Typography>
+                ),
             },
             {
               field: 'low',
               headerName: 'Low',
               align: 'center',
-              renderCell: (row) => row.low > 0 ? (
-                <Chip label={row.low} size="small" variant="outlined" />
-              ) : (
-                <Typography variant="body2" color="text.secondary">-</Typography>
-              ),
+              renderCell: row =>
+                row.low > 0 ? (
+                  <Chip label={row.low} size="small" variant="outlined" />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    -
+                  </Typography>
+                ),
             },
             {
               field: 'visibility',
               headerName: 'Visibility',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Chip
                   label={row.visibility}
                   size="small"
@@ -551,7 +611,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             },
           ]}
           rows={reposWithAlerts}
-          getRowId={(row) => row.name}
+          getRowId={row => row.name}
           emptyMessage="No open Dependabot alerts found"
         />
       </Box>
@@ -571,7 +631,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'name',
               headerName: 'Repository Name',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.url} target="_blank" rel="noopener">
                   {row.name}
                 </Link>
@@ -581,7 +641,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'visibility',
               headerName: 'Visibility',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Chip
                   label={row.visibility}
                   size="small"
@@ -591,7 +651,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             },
           ]}
           rows={unprotectedRepos}
-          getRowId={(row) => row.name}
+          getRowId={row => row.name}
           emptyMessage="All default branches are protected"
         />
       </Box>
@@ -601,9 +661,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
       {/* Feature 5: Repositories with No Admin */}
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <Typography variant="h6">
-            Repositories with No Admin
-          </Typography>
+          <Typography variant="h6">Repositories with No Admin</Typography>
           <Tooltip title="This shows repos with no explicit admin. Organisation owners always have admin access to all repos, so this metric indicates lack of delegated ownership rather than true lack of access.">
             <InfoIcon color="action" fontSize="small" />
           </Tooltip>
@@ -612,8 +670,9 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
           Repositories where no individual collaborator has explicit admin permissions
         </Typography>
         <Alert severity="info" sx={{ mb: 2 }}>
-          This shows repos with no explicit admin. Organisation owners always have admin access to all repos,
-          so this metric indicates lack of delegated ownership rather than true lack of access.
+          This shows repos with no explicit admin. Organisation owners always have admin access to
+          all repos, so this metric indicates lack of delegated ownership rather than true lack of
+          access.
         </Alert>
 
         <DataTable
@@ -621,7 +680,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'name',
               headerName: 'Repository Name',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Link href={row.url} target="_blank" rel="noopener">
                   {row.name}
                 </Link>
@@ -631,7 +690,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             {
               field: 'visibility',
               headerName: 'Visibility',
-              renderCell: (row) => (
+              renderCell: row => (
                 <Chip
                   label={row.visibility}
                   size="small"
@@ -641,7 +700,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             },
           ]}
           rows={noAdminRepos}
-          getRowId={(row) => row.name}
+          getRowId={row => row.name}
           emptyMessage="All repositories have at least one admin"
         />
       </Box>
