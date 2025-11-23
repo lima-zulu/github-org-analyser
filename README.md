@@ -40,7 +40,6 @@ User-adjustable settings (thresholds, cache TTL, display limits) are in `src/uti
 ### Backlog
 
 - TypeScript `strict` mode disabled - enabling requires fixing type errors across the codebase
-- `@typescript-eslint/no-explicit-any` disabled - enabling requires replacing `any` types with proper definitions
 
 ### Won't Fix
 

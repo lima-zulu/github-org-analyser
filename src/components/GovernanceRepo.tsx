@@ -278,25 +278,24 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
         }}
       >
         <CircularProgress />
-        <Box sx={{ width: '50%' }}>
-          <Typography variant="body2">
-            Forks: {forkProgress.current} of {forkProgress.total}
-          </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={forkProgress.total > 0 ? (forkProgress.current / forkProgress.total) * 100 : 0}
-            sx={{ mb: 2 }}
-          />
-          <Typography variant="body2">
-            Active repos: {activeProgress.current} of {activeProgress.total}
-          </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={
-              activeProgress.total > 0 ? (activeProgress.current / activeProgress.total) * 100 : 0
-            }
-          />
-        </Box>
+        <Typography variant="body1">
+          Forks: {forkProgress.current} of {forkProgress.total}
+        </Typography>
+        <LinearProgress
+          variant="determinate"
+          value={forkProgress.total > 0 ? (forkProgress.current / forkProgress.total) * 100 : 0}
+          sx={{ width: '50%' }}
+        />
+        <Typography variant="body1">
+          Active repos: {activeProgress.current} of {activeProgress.total}
+        </Typography>
+        <LinearProgress
+          variant="determinate"
+          value={
+            activeProgress.total > 0 ? (activeProgress.current / activeProgress.total) * 100 : 0
+          }
+          sx={{ width: '50%' }}
+        />
       </Box>
     );
   }

@@ -206,7 +206,7 @@ class GitHubApiService {
       await this.get(`/repos/${owner}/${repo}/branches/${branch}/protection`);
       return true; // 200 response means protected
     } catch (error) {
-      if ((error as any).status === 404) {
+      if ((error as GitHubApiError).status === 404) {
         return false; // 404 means not protected
       }
       console.warn(`Failed to check branch protection for ${owner}/${repo}/${branch}:`, error);
@@ -249,7 +249,7 @@ class GitHubApiService {
       return await this.get(`/apps/${slug}`);
     } catch (error) {
       // 404 is expected for private/internal apps - don't warn
-      if ((error as any).status !== 404) {
+      if ((error as GitHubApiError).status !== 404) {
         console.warn(`Failed to get app by slug ${slug}:`, error);
       }
       return null;

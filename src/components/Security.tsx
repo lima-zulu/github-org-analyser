@@ -163,15 +163,14 @@ function Security({ apiService, orgName, isActive }) {
         }}
       >
         <CircularProgress />
-        <Box sx={{ width: '50%' }}>
-          <Typography variant="body2">
-            Checking repositories: {progress.current} of {progress.total}
-          </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={progress.total > 0 ? (progress.current / progress.total) * 100 : 0}
-          />
-        </Box>
+        <Typography variant="body1">
+          Checking repositories: {progress.current} of {progress.total}
+        </Typography>
+        <LinearProgress
+          variant="determinate"
+          value={progress.total > 0 ? (progress.current / progress.total) * 100 : 0}
+          sx={{ width: '50%' }}
+        />
       </Box>
     );
   }

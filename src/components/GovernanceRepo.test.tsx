@@ -35,10 +35,10 @@ describe('GovernanceRepo', () => {
     getDependabotAlerts: ReturnType<typeof vi.fn>;
     isDependabotEnabled: ReturnType<typeof vi.fn>;
   };
-  let renderCount: number;
+  let _renderCount: number;
 
   beforeEach(() => {
-    renderCount = 0;
+    _renderCount = 0;
     vi.clearAllMocks();
 
     // Create mock API service
@@ -59,7 +59,7 @@ describe('GovernanceRepo', () => {
     // Track render count via getOrgRepositories calls
     // If there's an infinite loop, this would be called many times
 
-    const { rerender } = render(
+    const { rerender: _rerender } = render(
       <GovernanceRepo apiService={mockApiService} orgName="test-org" isActive={true} />,
     );
 
@@ -80,7 +80,7 @@ describe('GovernanceRepo', () => {
   });
 
   it('should not refetch when props remain the same', async () => {
-    const { rerender } = render(
+    const { rerender: _rerender } = render(
       <GovernanceRepo apiService={mockApiService} orgName="test-org" isActive={true} />,
     );
 
@@ -91,7 +91,7 @@ describe('GovernanceRepo', () => {
     const callCountAfterMount = mockApiService.getOrgRepositories.mock.calls.length;
 
     // Simulate a re-render with same props
-    rerender(<GovernanceRepo apiService={mockApiService} orgName="test-org" isActive={true} />);
+    _rerender(<GovernanceRepo apiService={mockApiService} orgName="test-org" isActive={true} />);
 
     // Wait a bit
     await new Promise(resolve => setTimeout(resolve, 200));
