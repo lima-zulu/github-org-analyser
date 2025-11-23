@@ -1,39 +1,30 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Box,
-  Container,
-  AppBar,
-  Toolbar,
-  Typography,
-  TextField,
-  Button,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  IconButton,
   Tabs,
   Tab,
   Alert,
   Snackbar,
-  Tooltip,
-  Paper,
-  Avatar,
 } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import CloseIcon from '@mui/icons-material/Close';
+import HomeIcon from '@mui/icons-material/Home';
+import ArchiveIcon from '@mui/icons-material/Archive';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import BusinessIcon from '@mui/icons-material/Business';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import InfoIcon from '@mui/icons-material/Info';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { getTheme } from './theme';
 import GitHubApiService from './services/githubApi';
-import ArchiveCandidates from './components/ArchiveCandidates';
 import CleanupNeeded from './components/CleanupNeeded';
-import ForkedRepos from './components/ForkedRepos';
-import SecurityGovernanceRepo from './components/SecurityGovernanceRepo';
-import SecurityGovernanceOrg from './components/SecurityGovernanceOrg';
-import SetupInstructions from './components/SetupInstructions';
-import Info from './components/Info';
+import GovernanceRepo from './components/GovernanceRepo';
+import GovernanceOrg from './components/GovernanceOrg';
+import Costs from './components/Costs';
+import FAQ from './components/FAQ';
+import Settings from './components/Settings';
+import Home from './components/Home';
+import { getConfig } from './utils/config';
 
 const TOKEN_STORAGE_KEY = 'github_token';
 const THEME_STORAGE_KEY = 'theme_mode';
@@ -42,9 +33,11 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
     if (saved === null) {
-      // First time user - set dark mode as default
-      localStorage.setItem(THEME_STORAGE_KEY, 'dark');
-      return true;
+      // First time user - use config default
+      const config = getConfig();
+      const defaultDark = config.appearance?.defaultDarkMode ?? true;
+      localStorage.setItem(THEME_STORAGE_KEY, defaultDark ? 'dark' : 'light');
+      return defaultDark;
     }
     return saved === 'dark';
   });
@@ -151,138 +144,57 @@ function App() {
     setActiveTab(newValue);
   };
 
-  // Handle Enter key in token input
-  const handleTokenKeyPress = (event) => {
-    if (event.key === 'Enter') {
-      handleValidateToken();
-    }
-  };
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        {/* App Bar */}
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              GitHub Organisation Analyser
-            </Typography>
-            <Tooltip title={darkMode ? 'Light mode' : 'Dark mode'}>
-              <IconButton color="inherit" onClick={toggleDarkMode}>
-                {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
-              </IconButton>
-            </Tooltip>
-            {token && (
-              <Tooltip title="Clear token">
-                <IconButton color="inherit" onClick={handleClearToken}>
-                  <CloseIcon />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Toolbar>
-        </AppBar>
-
-        {/* Token and Org Selection */}
-        <Paper elevation={2} sx={{ p: 2, m: 2, maxWidth: 1400, mx: 'auto' }}>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-            <TextField
-              label="GitHub Personal Access Token"
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              onKeyPress={handleTokenKeyPress}
-              disabled={!!token}
-              sx={{ flexGrow: 1, minWidth: 300 }}
-              size="small"
-              placeholder="ghp_..."
-            />
-
-            {!token && (
-              <Button
-                variant="contained"
-                onClick={handleValidateToken}
-                disabled={validating || !tokenInput.trim()}
-              >
-                {validating ? 'Validating...' : 'Validate Token'}
-              </Button>
-            )}
-
-            {token && organizations.length > 0 && (
-              <>
-                <FormControl sx={{ minWidth: 200 }} size="small">
-                  <InputLabel>Organisation</InputLabel>
-                  <Select
-                    value={selectedOrg}
-                    onChange={(e) => setSelectedOrg(e.target.value)}
-                    label="Organisation"
-                  >
-                    {organizations.map((org) => (
-                      <MenuItem key={org.login} value={org.login}>
-                        {org.login}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                {selectedOrg && organizations.find(org => org.login === selectedOrg) && (
-                  <Avatar
-                    src={organizations.find(org => org.login === selectedOrg).avatar_url}
-                    alt={selectedOrg}
-                    sx={{ width: 32, height: 32 }}
-                  />
-                )}
-              </>
-            )}
-          </Box>
-
-          {!token && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Enter your GitHub Personal Access Token to get started. See the "Setup Instructions" tab for help creating a token.
-            </Alert>
-          )}
-
-          {token && organizations.length === 0 && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              No organizations found. Make sure your token has the correct permissions.
-            </Alert>
-          )}
-        </Paper>
-
         {/* Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: 1400, mx: 'auto' }}>
           <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
-            <Tab label="Setup" />
-            <Tab label="Info" />
-            <Tab label="Repos to Archive" />
-            <Tab label="Repos to Clean Up" />
-            <Tab label="Forked Repos" />
-            <Tab label="Security & Governance (Repo)" />
-            <Tab label="Security & Governance (Org)" />
+            <Tab icon={<HomeIcon />} aria-label="Home" />
+            <Tab icon={<ArchiveIcon />} aria-label="Cleanup" />
+            <Tab icon={<GitHubIcon />} aria-label="Repos" />
+            <Tab icon={<BusinessIcon />} aria-label="Org" />
+            <Tab icon={<AttachMoneyIcon />} aria-label="Costs" />
+            <Tab icon={<InfoIcon />} aria-label="FAQ" />
+            <Tab icon={<SettingsIcon />} aria-label="Settings" />
           </Tabs>
         </Box>
 
         {/* Tab Content */}
         <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
           <Box sx={{ display: activeTab === 0 ? 'block' : 'none' }}>
-            <SetupInstructions />
+            <Home apiService={apiService} orgName={selectedOrg} isActive={activeTab === 0} />
           </Box>
           <Box sx={{ display: activeTab === 1 ? 'block' : 'none' }}>
-            <Info />
+            <CleanupNeeded apiService={apiService} orgName={selectedOrg} isActive={activeTab === 1} />
           </Box>
           <Box sx={{ display: activeTab === 2 ? 'block' : 'none' }}>
-            <ArchiveCandidates apiService={apiService} orgName={selectedOrg} isActive={activeTab === 2} />
+            <GovernanceRepo apiService={apiService} orgName={selectedOrg} isActive={activeTab === 2} />
           </Box>
           <Box sx={{ display: activeTab === 3 ? 'block' : 'none' }}>
-            <CleanupNeeded apiService={apiService} orgName={selectedOrg} isActive={activeTab === 3} />
+            <GovernanceOrg apiService={apiService} orgName={selectedOrg} isActive={activeTab === 3} />
           </Box>
           <Box sx={{ display: activeTab === 4 ? 'block' : 'none' }}>
-            <ForkedRepos apiService={apiService} orgName={selectedOrg} isActive={activeTab === 4} />
+            <Costs apiService={apiService} orgName={selectedOrg} isActive={activeTab === 4} />
           </Box>
           <Box sx={{ display: activeTab === 5 ? 'block' : 'none' }}>
-            <SecurityGovernanceRepo apiService={apiService} orgName={selectedOrg} isActive={activeTab === 5} />
+            <FAQ />
           </Box>
           <Box sx={{ display: activeTab === 6 ? 'block' : 'none' }}>
-            <SecurityGovernanceOrg apiService={apiService} orgName={selectedOrg} isActive={activeTab === 6} />
+            <Settings
+              token={token}
+              tokenInput={tokenInput}
+              setTokenInput={setTokenInput}
+              onValidateToken={handleValidateToken}
+              onClearToken={handleClearToken}
+              validating={validating}
+              organizations={organizations}
+              selectedOrg={selectedOrg}
+              setSelectedOrg={setSelectedOrg}
+              darkMode={darkMode}
+              onToggleDarkMode={toggleDarkMode}
+            />
           </Box>
         </Box>
 

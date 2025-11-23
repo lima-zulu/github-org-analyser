@@ -1,18 +1,16 @@
 {
+  "appearance": {
+    "defaultDarkMode": true
+  },
   "thresholds": {
     "inactiveRepoMonths": 12,
     "staleBranchDays": 90,
-    "oldPRDays": 60
+    "oldPRDays": 60,
+    "branchCountWarning": 50
   },
-  "displayLimits": {
-    "maxInactiveRepos": 20,
-    "maxStaleBranchRepos": 30,
-    "maxOldPRRepos": 30,
-    "maxUnprotectedRepos": 20,
-    "maxNoAdminRepos": 20,
-    "maxOutsideCollaborators": 50,
-    "maxInstalledApps": 50,
-    "branchCountWarningThreshold": 50
+  "billing": {
+    "pricePerUserMonth": 4,
+    "includedActionsMinutes": 3000
   },
   "cache": {
     "ttlHours": 24

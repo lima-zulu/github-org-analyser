@@ -83,6 +83,28 @@ class GitHubApiService {
   }
 
   /**
+   * Get all members of an organization
+   */
+  async getOrgMembers(org) {
+    let allMembers = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const members = await this.get(`/orgs/${org}/members`, {
+        per_page: 100,
+        page
+      });
+
+      allMembers = allMembers.concat(members);
+      hasMore = members.length === 100;
+      page++;
+    }
+
+    return allMembers;
+  }
+
+  /**
    * Get the most recent pull request for a repository
    */
   async getLastPullRequest(owner, repo) {
@@ -369,6 +391,18 @@ class GitHubApiService {
   }
 
   /**
+   * Get languages used in a repository
+   * Returns object with language names as keys and byte counts as values
+   */
+  async getRepoLanguages(owner, repo) {
+    try {
+      return await this.get(`/repos/${owner}/${repo}/languages`);
+    } catch (error) {
+      return {};
+    }
+  }
+
+  /**
    * Compare two branches to get commits behind/ahead
    */
   async compareBranches(owner, repo, base, head) {
@@ -378,6 +412,78 @@ class GitHubApiService {
       return null;
     }
   }
+
+  // ============================================
+  // SECURITY API METHODS
+  // ============================================
+
+  /**
+   * Get open Dependabot alerts for a repository
+   * Returns array of open vulnerability alerts
+   * Note: Dependabot API uses cursor pagination, not page-based
+   */
+  async getDependabotAlerts(owner, repo, state = 'open') {
+    try {
+      // Fetch up to 100 alerts (API max per request)
+      // Most repos won't have more than 100 open alerts
+      const alerts = await this.get(`/repos/${owner}/${repo}/dependabot/alerts`, {
+        state,
+        per_page: 100
+      });
+
+      return Array.isArray(alerts) ? alerts : [];
+    } catch (error) {
+      // Return empty array if no access or no alerts
+      return [];
+    }
+  }
+
+  // ============================================
+  // BILLING API METHODS
+  // ============================================
+
+  /**
+   * Get billing usage for an organization (new billing platform)
+   * Returns detailed usage data for all products
+   */
+  async getBillingUsageDetails(org, options = {}) {
+    try {
+      const params = {};
+      if (options.year) params.year = options.year;
+      if (options.month) params.month = options.month;
+      // Use the new billing platform endpoint format
+      return await this.get(`/organizations/${org}/settings/billing/usage`, params);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get Copilot billing for an organization
+   * Returns seat allocation and usage
+   */
+  async getCopilotBilling(org) {
+    try {
+      return await this.get(`/orgs/${org}/copilot/billing`);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Get all budgets for an organization
+   */
+  async getBudgets(org) {
+    try {
+      // Use new billing platform endpoint format
+      const response = await this.get(`/organizations/${org}/settings/billing/budgets`);
+      return response.budgets || response || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
 }
+
 
 export default GitHubApiService;
