@@ -18,8 +18,8 @@ npm run dev      # Start dev server
 npm run build    # Production build
 npm run lint     # Lint with auto-fix
 npm run format   # Format with Prettier
-npm run test     # Run tests (watch mode)
-npm run test:run # Run tests once
+npm run test       # Run tests once
+npm run test:watch # Run tests (watch mode)
 ```
 
 ## Configuration
