@@ -9,8 +9,12 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import HomeIcon from '@mui/icons-material/Home';
-import SettingsIcon from '@mui/icons-material/Settings';
+import ArchiveIcon from '@mui/icons-material/Archive';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import BusinessIcon from '@mui/icons-material/Business';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import InfoIcon from '@mui/icons-material/Info';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { getTheme } from './theme';
 import GitHubApiService from './services/githubApi';
 import CleanupNeeded from './components/CleanupNeeded';
@@ -148,10 +152,10 @@ function App() {
         <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: 1400, mx: 'auto' }}>
           <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
             <Tab icon={<HomeIcon />} aria-label="Home" />
-            <Tab label="Cleanup" />
-            <Tab label="Governance (Repo)" />
-            <Tab label="Governance (Org)" />
-            <Tab label="Costs" />
+            <Tab icon={<ArchiveIcon />} aria-label="Cleanup" />
+            <Tab icon={<GitHubIcon />} aria-label="Repos" />
+            <Tab icon={<BusinessIcon />} aria-label="Org" />
+            <Tab icon={<AttachMoneyIcon />} aria-label="Costs" />
             <Tab icon={<InfoIcon />} aria-label="FAQ" />
             <Tab icon={<SettingsIcon />} aria-label="Settings" />
           </Tabs>
