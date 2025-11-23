@@ -252,18 +252,24 @@ function Home({ apiService, orgName, isActive }) {
 
             {/* Social Links & Stats */}
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}
+              <Link
+                href={`https://github.com/orgs/${orgName}/people`}
+                target="_blank"
+                rel="noopener"
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
                 <PeopleIcon fontSize="small" />
                 <Typography variant="body2">{memberCount} members</Typography>
-              </Box>
-              <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}
+              </Link>
+              <Link
+                href={`https://github.com/orgs/${orgName}/followers`}
+                target="_blank"
+                rel="noopener"
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
                 <PersonAddIcon fontSize="small" />
                 <Typography variant="body2">{orgData.followers} followers</Typography>
-              </Box>
+              </Link>
               <Link
                 href={orgData.html_url}
                 target="_blank"
@@ -307,7 +313,15 @@ function Home({ apiService, orgName, isActive }) {
             <Box
               sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
             >
-              <Typography variant="h6">Repositories</Typography>
+              <Link
+                href={`https://github.com/orgs/${orgName}/repositories`}
+                target="_blank"
+                rel="noopener"
+                underline="hover"
+                variant="h6"
+              >
+                Repositories
+              </Link>
               <Typography variant="h6">{repoBreakdown.total}</Typography>
             </Box>
             <TableContainer>
@@ -323,7 +337,14 @@ function Home({ apiService, orgName, isActive }) {
                 <TableBody>
                   <TableRow>
                     <TableCell component="th" scope="row">
-                      Private
+                      <Link
+                        href={`https://github.com/orgs/${orgName}/repositories?q=visibility%3Aprivate`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                      >
+                        Private
+                      </Link>
                     </TableCell>
                     <TableCell align="right">{repoBreakdown.privateActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.privateArchived}</TableCell>
@@ -333,7 +354,14 @@ function Home({ apiService, orgName, isActive }) {
                   </TableRow>
                   <TableRow>
                     <TableCell component="th" scope="row">
-                      Forked
+                      <Link
+                        href={`https://github.com/orgs/${orgName}/repositories?q=fork%3Atrue`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                      >
+                        Forked
+                      </Link>
                     </TableCell>
                     <TableCell align="right">{repoBreakdown.forkedActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.forkedArchived}</TableCell>
@@ -343,7 +371,14 @@ function Home({ apiService, orgName, isActive }) {
                   </TableRow>
                   <TableRow>
                     <TableCell component="th" scope="row">
-                      Public (not forked)
+                      <Link
+                        href={`https://github.com/orgs/${orgName}/repositories?q=visibility%3Apublic+fork%3Afalse`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                      >
+                        Public (not forked)
+                      </Link>
                     </TableCell>
                     <TableCell align="right">{repoBreakdown.publicActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.publicArchived}</TableCell>
@@ -393,6 +428,12 @@ function Home({ apiService, orgName, isActive }) {
                     label={`${lang.name} (${lang.count})`}
                     variant="outlined"
                     size="small"
+                    component="a"
+                    href={`https://github.com/orgs/${orgName}/repositories?q=lang%3A%22${lang.name.replace(/ /g, '+')}%22&type=all`}
+                    target="_blank"
+                    rel="noopener"
+                    clickable
+                    color="primary"
                   />
                 ))}
               </Box>
@@ -413,6 +454,12 @@ function Home({ apiService, orgName, isActive }) {
                     label={`${topic.name} (${topic.count})`}
                     variant="outlined"
                     size="small"
+                    component="a"
+                    href={`https://github.com/search?q=topic%3A${topic.name.replace(/ /g, '-')}+org%3A${orgName}+fork%3Atrue&type=repositories`}
+                    target="_blank"
+                    rel="noopener"
+                    clickable
+                    color="primary"
                   />
                 ))}
               </Box>

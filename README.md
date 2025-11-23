@@ -32,7 +32,6 @@ User-adjustable settings (thresholds, cache TTL, display limits) are in `src/uti
 
 - TypeScript `strict` mode disabled - enabling requires fixing type errors across the codebase
 - `@typescript-eslint/no-explicit-any` disabled - enabling requires replacing `any` types with proper definitions
-- Org Overview tab missing links - members, followers, languages, and topics tiles should link to GitHub pages
 - tsconfig review needed - review `module`, `moduleResolution`, `lib` and other compiler options
 - Repo Governance: skip Dependabot check for forked repos
 - Repo Governance: new table showing non-forked repos with Dependabot disabled
