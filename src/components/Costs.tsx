@@ -12,12 +12,12 @@ import {
   Divider,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { getConfig } from '../utils/config';
+import { useConfig } from '../hooks/useConfig';
 import { loadFromCache, saveToCache } from '../utils/cache';
 import DataTable from './DataTable';
 
 function Costs({ apiService, orgName, isActive }) {
-  const config = getConfig();
+  const config = useConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);

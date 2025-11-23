@@ -12,12 +12,12 @@ import {
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import WarningIcon from '@mui/icons-material/Warning';
-import { getConfig } from '../utils/config';
+import { useConfig } from '../hooks/useConfig';
 import { saveToCache, loadFromCache } from '../utils/cache';
 import DataTable from './DataTable';
 
 function CleanupNeeded({ apiService, orgName, isActive }) {
-  const config = getConfig();
+  const config = useConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [inactiveRepos, setInactiveRepos] = useState([]);
