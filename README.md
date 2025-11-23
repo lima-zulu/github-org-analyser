@@ -1,62 +1,44 @@
 # GitHub Organisation Analyser
 
-A React-based web application for analysing GitHub organisations to identify security, governance, and maintenance issues.
-
-## Overview
-
-This tool provides insights into your GitHub organisation across multiple dimensions:
-- **Security & Governance** - Organisation admins, installed apps, outside collaborators, branch protection, delegated repository ownership
-- **Cleanup Opportunities** - Stale branches, old pull requests
-- **Repository Health** - Inactive repositories, forked repositories, repository activity patterns
-
-The application uses GitHub's REST API with fine-grained Personal Access Tokens (PAT) and caches results in localStorage for performance.
+Client-side React app for analysing GitHub organisations. Identifies security, governance, and maintenance issues across repos. Uses GitHub REST API with fine-grained PATs; all API calls made from browser (no backend). Token setup instructions are in the app's FAQ tab.
 
 ## Tech Stack
 
-- **React 19.2** with hooks
-- **Vite** for build tooling and dev server
-- **Material UI (MUI)** for components and styling
-- **GitHub REST API** v3 with fine-grained PAT authentication
+- React with Vite
+- Material UI (MUI)
+- TypeScript (ESM, not CJS)
+- Vitest for testing
+- ESLint + Prettier with Husky pre-commit hooks
 
-## Quick Start
+## Development
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Run development server:**
-   ```bash
-   npm run dev
-   ```
-
-3. **Generate a GitHub fine-grained PAT:**
-   - Navigate to GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
-   - Create token with Organisation permissions:
-     - **Administration:** Read-only (for installed apps)
-     - **Members:** Read-only (for org members/admins)
-     - **Metadata:** Read-only (mandatory)
-   - Repository permissions:
-     - **Administration:** Read-only (for branch protection)
-     - **Contents:** Read-only
-     - **Metadata:** Read-only (mandatory)
-     - **Pull requests:** Read-only
-
-4. **Use the app:**
-   - Enter your PAT in the application
-   - Select an organisation
-   - Navigate through the analysis tabs
+```bash
+npm install
+npm run dev      # Start dev server
+npm run build    # Production build
+npm run lint     # Lint with auto-fix
+npm run format   # Format with Prettier
+npm run test     # Run tests (watch mode)
+npm run test:run # Run tests once
+```
 
 ## Configuration
 
-Edit `src/config.json` to adjust:
-- Display limits (max items shown per section)
-- Cache TTL (default 24 hours)
-- Thresholds (stale branch days, old PR days, etc.)
+User-adjustable settings (thresholds, cache TTL, display limits) are in `src/utils/config.ts` with defaults in `src/config.json`. Users can modify these via the Settings tab.
 
-## Development Notes
+## Design
 
-- API calls are cached in localStorage by org name and tab identifier
-- Progress indicators show current repository being processed for long-running operations
-- The app filters out archived and forked repositories from most analysis (forked repos have their own dedicated tab)
-- External collaborators and outside collaborators are fetched per-repository due to API limitations
+- Each tab manages its own data fetching and state - no global store
+- Tabs lazy-load on first visit via `isActive` prop; `hasLoaded` prevents re-fetching on tab switches
+- Caching: localStorage with TTL, keys follow `github-org-analyser-{org}-{dataType}` pattern; each tab's refresh button bypasses cache via `skipCache=true`
+- Token stored in sessionStorage (cleared on browser close); settings and cache in localStorage (persists)
+- Per-tab caching is intentional: tabs call different API endpoints with minimal overlap, so global caching would add complexity without meaningful performance benefit
+- TypeScript: `module: ESNext` and `moduleResolution: bundler` for Vite/bundler-based frontends (as opposed to `NodeNext` for Node.js backends); `lib` includes DOM types since this runs in browser; strict mode enabled
+- Types: component-specific types live in the component file; shared types (API responses, common props) live in `src/types/index.ts`
+
+## Known Issues
+
+- Console shows 404 errors in Governance tabs - GitHub API provides no way to check availability beforehand, so we must call these endpoints and handle 404s; browser network errors can't be suppressed:
+  - `/apps/{slug}` - private/internal GitHub Apps
+  - `/vulnerability-alerts` - repos where Dependabot alerts are not available
+  - `/branches/{branch}/protection` - branch protection not configured

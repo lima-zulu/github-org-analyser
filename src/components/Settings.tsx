@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -33,14 +33,11 @@ function Settings({
   onToggleDarkMode,
 }) {
   const [config, setConfig] = useState(getConfig());
-  const [hasChanges, setHasChanges] = useState(false);
 
   // Check if current config differs from defaults
-  useEffect(() => {
+  const hasChanges = useMemo(() => {
     const defaults = getDefaultConfig();
-    const current = getConfig();
-    const isDifferent = JSON.stringify(defaults) !== JSON.stringify(current);
-    setHasChanges(isDifferent);
+    return JSON.stringify(defaults) !== JSON.stringify(config);
   }, [config]);
 
   const handleConfigChange = (path, value) => {

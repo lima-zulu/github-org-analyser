@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -20,141 +20,121 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
   const config = getConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [orgData, setOrgData] = useState(null);
+  const [_orgData, setOrgData] = useState(null);
   const [orgAdmins, setOrgAdmins] = useState([]);
   const [installedApps, setInstalledApps] = useState([]);
   const [outsideCollaborators, setOutsideCollaborators] = useState([]);
-  const [totalApps, setTotalApps] = useState(0);
-  const [totalOutsideCollabs, setTotalOutsideCollabs] = useState(0);
+  const [_totalApps, setTotalApps] = useState(0);
+  const [_totalOutsideCollabs, setTotalOutsideCollabs] = useState(0);
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  const fetchData = async (skipCache = false) => {
-    if (!apiService || !orgName) return;
+  const fetchData = useCallback(
+    async (skipCache = false) => {
+      if (!apiService || !orgName) return;
 
-    // Try to load from cache first
-    if (!skipCache) {
-      const cachedData = loadFromCache(orgName, 'security-org');
-      if (cachedData) {
-        setOrgData(cachedData.orgData);
-        setOrgAdmins(cachedData.orgAdmins);
-        setInstalledApps(cachedData.installedApps);
-        setOutsideCollaborators(cachedData.outsideCollaborators);
-        setTotalApps(cachedData.totalApps);
-        setTotalOutsideCollabs(cachedData.totalOutsideCollabs);
-        setHasLoaded(true);
-        return;
-      }
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Get organization details
-      const org = await apiService.getOrganization(orgName);
-      setOrgData(org);
-
-      // Get org admins (Feature 9)
-      const adminsList = await apiService.getOrgAdmins(orgName);
-
-      // Fetch full details for each admin to get names
-      const adminsWithDetails = await Promise.all(
-        adminsList.map(async admin => {
-          const fullDetails = await apiService.getUser(admin.login);
-          return fullDetails || admin;
-        }),
-      );
-
-      // Get installed apps (Feature 7)
-      const apps = await apiService.getOrgInstalledApps(orgName);
-
-      // Fetch full details for each app to get owner information
-      const appsWithOwner = await Promise.all(
-        apps.map(async app => {
-          const appDetails = await apiService.getAppBySlug(app.app_slug);
-
-          // If app details fetch fails (404), it's likely a private internal app
-          // Use the installation account as the owner (where it's installed)
-          const ownerLogin = appDetails?.owner?.login || app.account?.login || null;
-          const ownerType = appDetails?.owner?.type || app.account?.type || null;
-
-          return {
-            ...app,
-            ownerLogin,
-            ownerType,
-          };
-        }),
-      );
-
-      // Get outside collaborators (Feature 8)
-      const outsideCollabs = await apiService.getOutsideCollaborators(orgName);
-
-      // Get repos for each outside collaborator
-      const repos = await apiService.getOrgRepositories(orgName);
-      const collabsWithRepos = [];
-
-      for (const collab of outsideCollabs) {
-        // Count repos this collaborator has access to
-        let repoList = [];
-        for (const repo of repos) {
-          const collaborators = await apiService.getRepoCollaborators(orgName, repo.name);
-          const hasAccess = collaborators.some(c => c.login === collab.login);
-          if (hasAccess) {
-            repoList.push(repo.name);
-          }
+      // Try to load from cache first
+      if (!skipCache) {
+        const cachedData = loadFromCache(orgName, 'security-org');
+        if (cachedData) {
+          setOrgData(cachedData.orgData);
+          setOrgAdmins(cachedData.orgAdmins);
+          setInstalledApps(cachedData.installedApps);
+          setOutsideCollaborators(cachedData.outsideCollaborators);
+          setTotalApps(cachedData.totalApps);
+          setTotalOutsideCollabs(cachedData.totalOutsideCollabs);
+          setHasLoaded(true);
+          return;
         }
-
-        collabsWithRepos.push({
-          login: collab.login,
-          url: collab.html_url,
-          repoCount: repoList.length,
-          repos: repoList,
-        });
       }
 
-      const totalOutsideCollabs = collabsWithRepos.length;
-      const outsideCollaborators = collabsWithRepos;
+      setLoading(true);
+      setError(null);
 
-      // Sort apps by name
-      appsWithOwner.sort((a, b) => (a.app_slug || '').localeCompare(b.app_slug || ''));
+      try {
+        // Get organization details
+        const org = await apiService.getOrganization(orgName);
+        setOrgData(org);
 
-      const totalApps = appsWithOwner.length;
-      const installedApps = appsWithOwner;
+        // Get org admins (Feature 9)
+        const adminsList = await apiService.getOrgAdmins(orgName);
 
-      setTotalOutsideCollabs(totalOutsideCollabs);
-      setOutsideCollaborators(outsideCollaborators);
-      setTotalApps(totalApps);
-      setInstalledApps(installedApps);
-      setHasLoaded(true);
+        // Fetch full details for each admin to get names
+        const adminsWithDetails = await Promise.all(
+          adminsList.map(async admin => {
+            const fullDetails = await apiService.getUser(admin.login);
+            return fullDetails || admin;
+          }),
+        );
 
-      setOrgAdmins(adminsWithDetails);
+        // Get installed apps (Feature 7)
+        const apps = await apiService.getOrgInstalledApps(orgName);
 
-      // Save to cache
-      saveToCache(
-        orgName,
-        'security-org',
-        {
-          orgData: org,
-          orgAdmins: adminsWithDetails,
-          installedApps,
-          outsideCollaborators,
-          totalApps,
-          totalOutsideCollabs,
-        },
-        config.cache.ttlHours,
-      );
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Fetch full details for each app to get owner information
+        const appsWithOwner = await Promise.all(
+          apps.map(async app => {
+            const appDetails = await apiService.getAppBySlug(app.app_slug);
+
+            // If app details fetch fails (404), it's likely a private internal app
+            // Use the installation account as the owner (where it's installed)
+            const ownerLogin = appDetails?.owner?.login || app.account?.login || null;
+            const ownerType = appDetails?.owner?.type || app.account?.type || null;
+
+            return {
+              ...app,
+              ownerLogin,
+              ownerType,
+            };
+          }),
+        );
+
+        // Get outside collaborators (Feature 8)
+        const outsideCollabs = await apiService.getOutsideCollaborators(orgName);
+
+        const totalOutsideCollabs = outsideCollabs.length;
+        const outsideCollaborators = outsideCollabs;
+
+        // Sort apps by name
+        appsWithOwner.sort((a, b) => (a.app_slug || '').localeCompare(b.app_slug || ''));
+
+        const totalApps = appsWithOwner.length;
+        const installedApps = appsWithOwner;
+
+        setTotalOutsideCollabs(totalOutsideCollabs);
+        setOutsideCollaborators(outsideCollaborators);
+        setTotalApps(totalApps);
+        setInstalledApps(installedApps);
+        setHasLoaded(true);
+
+        setOrgAdmins(adminsWithDetails);
+
+        // Save to cache
+        saveToCache(
+          orgName,
+          'security-org',
+          {
+            orgData: org,
+            orgAdmins: adminsWithDetails,
+            installedApps,
+            outsideCollaborators,
+            totalApps,
+            totalOutsideCollabs,
+          },
+          config.cache.ttlHours,
+        );
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [apiService, orgName, config],
+  );
 
   useEffect(() => {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
-  }, [isActive, hasLoaded, apiService, orgName]);
+  }, [isActive, hasLoaded, apiService, orgName, fetchData]);
 
   const formatDate = date => {
     if (!date) return 'N/A';
@@ -211,7 +191,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h5" gutterBottom>
-            Governance (Organisation Level)
+            Organisation Governance
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
             Organisation-wide governance metrics including org owners, admin users, outside
@@ -276,21 +256,14 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
           columns={[
             {
               field: 'login',
-              headerName: 'Username',
+              headerName: 'User',
               renderCell: row => (
-                <Link href={row.url} target="_blank" rel="noopener">
-                  {row.login}
-                </Link>
-              ),
-            },
-            { field: 'repoCount', headerName: 'Repository Count' },
-            {
-              field: 'repos',
-              headerName: 'Repositories',
-              renderCell: row => (
-                <Tooltip title={row.repos.join(', ')}>
-                  <span>{row.repoCount} repos</span>
-                </Tooltip>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Avatar src={row.avatar_url} alt={row.login} sx={{ width: 40, height: 40 }} />
+                  <Link href={row.html_url} target="_blank" rel="noopener">
+                    {row.login}
+                  </Link>
+                </Box>
               ),
             },
           ]}

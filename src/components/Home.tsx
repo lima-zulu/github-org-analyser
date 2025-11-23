@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -46,130 +46,133 @@ function Home({ apiService, orgName, isActive }) {
   const [topLanguages, setTopLanguages] = useState([]);
   const [topTopics, setTopTopics] = useState([]);
 
-  const fetchData = async (skipCache = false) => {
-    if (!apiService || !orgName) return;
+  const fetchData = useCallback(
+    async (skipCache = false) => {
+      if (!apiService || !orgName) return;
 
-    // Try to load from cache first
-    if (!skipCache) {
-      const cachedData = loadFromCache(orgName, 'home');
-      if (cachedData && 'repoBreakdown' in cachedData) {
-        setOrgData(cachedData.orgData);
-        setMemberCount(cachedData.memberCount);
-        setRepoBreakdown(cachedData.repoBreakdown);
-        setTopLanguages(cachedData.topLanguages);
-        setTopTopics(cachedData.topTopics);
-        setHasLoaded(true);
-        return;
+      // Try to load from cache first
+      if (!skipCache) {
+        const cachedData = loadFromCache(orgName, 'home');
+        if (cachedData && 'repoBreakdown' in cachedData) {
+          setOrgData(cachedData.orgData);
+          setMemberCount(cachedData.memberCount);
+          setRepoBreakdown(cachedData.repoBreakdown);
+          setTopLanguages(cachedData.topLanguages);
+          setTopTopics(cachedData.topTopics);
+          setHasLoaded(true);
+          return;
+        }
       }
-    }
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Fetch org details and repos in parallel
-      const [org, repos, members] = await Promise.all([
-        apiService.getOrganization(orgName),
-        apiService.getOrgRepositories(orgName),
-        apiService.getOrgMembers(orgName),
-      ]);
+      try {
+        // Fetch org details and repos in parallel
+        const [org, repos, members] = await Promise.all([
+          apiService.getOrganization(orgName),
+          apiService.getOrgRepositories(orgName),
+          apiService.getOrgMembers(orgName),
+        ]);
 
-      setOrgData(org);
-      setMemberCount(members.length);
+        setOrgData(org);
+        setMemberCount(members.length);
 
-      // Calculate repo breakdown
-      const breakdown = {
-        publicActive: 0,
-        publicArchived: 0,
-        privateActive: 0,
-        privateArchived: 0,
-        forkedActive: 0,
-        forkedArchived: 0,
-        total: repos.length,
-      };
+        // Calculate repo breakdown
+        const breakdown = {
+          publicActive: 0,
+          publicArchived: 0,
+          privateActive: 0,
+          privateArchived: 0,
+          forkedActive: 0,
+          forkedArchived: 0,
+          total: repos.length,
+        };
 
-      repos.forEach(repo => {
-        if (repo.fork) {
-          // Forked repos (always public)
-          if (repo.archived) {
-            breakdown.forkedArchived++;
+        repos.forEach(repo => {
+          if (repo.fork) {
+            // Forked repos (always public)
+            if (repo.archived) {
+              breakdown.forkedArchived++;
+            } else {
+              breakdown.forkedActive++;
+            }
+          } else if (repo.private) {
+            // Private repos
+            if (repo.archived) {
+              breakdown.privateArchived++;
+            } else {
+              breakdown.privateActive++;
+            }
           } else {
-            breakdown.forkedActive++;
+            // Public repos (non-forked)
+            if (repo.archived) {
+              breakdown.publicArchived++;
+            } else {
+              breakdown.publicActive++;
+            }
           }
-        } else if (repo.private) {
-          // Private repos
-          if (repo.archived) {
-            breakdown.privateArchived++;
-          } else {
-            breakdown.privateActive++;
+        });
+
+        setRepoBreakdown(breakdown);
+
+        // Calculate top languages from active non-forked repos
+        const languageCounts = {};
+        repos.forEach(repo => {
+          if (repo.language && !repo.archived && !repo.fork) {
+            languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
           }
-        } else {
-          // Public repos (non-forked)
-          if (repo.archived) {
-            breakdown.publicArchived++;
-          } else {
-            breakdown.publicActive++;
+        });
+        const sortedLanguages = Object.entries(languageCounts)
+          .sort((a, b) => (b[1] as number) - (a[1] as number))
+          .slice(0, 5)
+          .map(([name, count]) => ({ name, count }));
+        setTopLanguages(sortedLanguages);
+
+        // Calculate top topics from repos
+        const topicCounts = {};
+        repos.forEach(repo => {
+          if (repo.topics && repo.topics.length > 0) {
+            repo.topics.forEach(topic => {
+              topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+            });
           }
-        }
-      });
+        });
+        const sortedTopics = Object.entries(topicCounts)
+          .sort((a, b) => (b[1] as number) - (a[1] as number))
+          .slice(0, 10)
+          .map(([name, count]) => ({ name, count }));
+        setTopTopics(sortedTopics);
 
-      setRepoBreakdown(breakdown);
+        setHasLoaded(true);
 
-      // Calculate top languages from active non-forked repos
-      const languageCounts = {};
-      repos.forEach(repo => {
-        if (repo.language && !repo.archived && !repo.fork) {
-          languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
-        }
-      });
-      const sortedLanguages = Object.entries(languageCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, count]) => ({ name, count }));
-      setTopLanguages(sortedLanguages);
-
-      // Calculate top topics from repos
-      const topicCounts = {};
-      repos.forEach(repo => {
-        if (repo.topics && repo.topics.length > 0) {
-          repo.topics.forEach(topic => {
-            topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-          });
-        }
-      });
-      const sortedTopics = Object.entries(topicCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([name, count]) => ({ name, count }));
-      setTopTopics(sortedTopics);
-
-      setHasLoaded(true);
-
-      // Save to cache
-      saveToCache(
-        orgName,
-        'home',
-        {
-          orgData: org,
-          memberCount: members.length,
-          repoBreakdown: breakdown,
-          topLanguages: sortedLanguages,
-          topTopics: sortedTopics,
-        },
-        config.cache.ttlHours,
-      );
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Save to cache
+        saveToCache(
+          orgName,
+          'home',
+          {
+            orgData: org,
+            memberCount: members.length,
+            repoBreakdown: breakdown,
+            topLanguages: sortedLanguages,
+            topTopics: sortedTopics,
+          },
+          config.cache.ttlHours,
+        );
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [apiService, orgName, config],
+  );
 
   useEffect(() => {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
-  }, [isActive, hasLoaded, apiService, orgName]);
+  }, [isActive, hasLoaded, apiService, orgName, fetchData]);
 
   if (!apiService || !orgName) {
     return (
@@ -249,18 +252,24 @@ function Home({ apiService, orgName, isActive }) {
 
             {/* Social Links & Stats */}
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}
+              <Link
+                href={`https://github.com/orgs/${orgName}/people`}
+                target="_blank"
+                rel="noopener"
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
                 <PeopleIcon fontSize="small" />
                 <Typography variant="body2">{memberCount} members</Typography>
-              </Box>
-              <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}
+              </Link>
+              <Link
+                href={`https://github.com/orgs/${orgName}/followers`}
+                target="_blank"
+                rel="noopener"
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
                 <PersonAddIcon fontSize="small" />
                 <Typography variant="body2">{orgData.followers} followers</Typography>
-              </Box>
+              </Link>
               <Link
                 href={orgData.html_url}
                 target="_blank"
@@ -304,7 +313,15 @@ function Home({ apiService, orgName, isActive }) {
             <Box
               sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
             >
-              <Typography variant="h6">Repositories</Typography>
+              <Link
+                href={`https://github.com/orgs/${orgName}/repositories`}
+                target="_blank"
+                rel="noopener"
+                underline="hover"
+                variant="h6"
+              >
+                Repositories
+              </Link>
               <Typography variant="h6">{repoBreakdown.total}</Typography>
             </Box>
             <TableContainer>
@@ -320,7 +337,14 @@ function Home({ apiService, orgName, isActive }) {
                 <TableBody>
                   <TableRow>
                     <TableCell component="th" scope="row">
-                      Private
+                      <Link
+                        href={`https://github.com/orgs/${orgName}/repositories?q=visibility%3Aprivate`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                      >
+                        Private
+                      </Link>
                     </TableCell>
                     <TableCell align="right">{repoBreakdown.privateActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.privateArchived}</TableCell>
@@ -330,7 +354,14 @@ function Home({ apiService, orgName, isActive }) {
                   </TableRow>
                   <TableRow>
                     <TableCell component="th" scope="row">
-                      Forked
+                      <Link
+                        href={`https://github.com/orgs/${orgName}/repositories?q=fork%3Atrue`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                      >
+                        Forked
+                      </Link>
                     </TableCell>
                     <TableCell align="right">{repoBreakdown.forkedActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.forkedArchived}</TableCell>
@@ -340,7 +371,14 @@ function Home({ apiService, orgName, isActive }) {
                   </TableRow>
                   <TableRow>
                     <TableCell component="th" scope="row">
-                      Public (not forked)
+                      <Link
+                        href={`https://github.com/orgs/${orgName}/repositories?q=visibility%3Apublic+fork%3Afalse`}
+                        target="_blank"
+                        rel="noopener"
+                        underline="hover"
+                      >
+                        Public (not forked)
+                      </Link>
                     </TableCell>
                     <TableCell align="right">{repoBreakdown.publicActive}</TableCell>
                     <TableCell align="right">{repoBreakdown.publicArchived}</TableCell>
@@ -390,6 +428,12 @@ function Home({ apiService, orgName, isActive }) {
                     label={`${lang.name} (${lang.count})`}
                     variant="outlined"
                     size="small"
+                    component="a"
+                    href={`https://github.com/orgs/${orgName}/repositories?q=lang%3A%22${lang.name.replace(/ /g, '+')}%22&type=all`}
+                    target="_blank"
+                    rel="noopener"
+                    clickable
+                    color="primary"
                   />
                 ))}
               </Box>
@@ -410,6 +454,12 @@ function Home({ apiService, orgName, isActive }) {
                     label={`${topic.name} (${topic.count})`}
                     variant="outlined"
                     size="small"
+                    component="a"
+                    href={`https://github.com/search?q=topic%3A${topic.name.replace(/ /g, '-')}+org%3A${orgName}+fork%3Atrue&type=repositories`}
+                    target="_blank"
+                    rel="noopener"
+                    clickable
+                    color="primary"
                   />
                 ))}
               </Box>
