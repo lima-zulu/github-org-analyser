@@ -17,9 +17,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SecurityIcon from '@mui/icons-material/Security';
 import StorageIcon from '@mui/icons-material/Storage';
 import SpeedIcon from '@mui/icons-material/Speed';
-import config from '../config.json';
+import { getConfig } from '../utils/config';
 
 function FAQ() {
+  const config = getConfig();
+
   // Q1: Setup content
   const SetupContent = () => (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -169,7 +171,7 @@ function FAQ() {
           </AccordionSummary>
           <AccordionDetails>
             <Typography variant="body2" paragraph>
-              The tool uses a configuration file to control various thresholds and settings. You can modify these values in <code>src/config.json</code>:
+              The tool uses configurable thresholds and settings. You can modify these values in the <strong>Settings</strong> tab under "Application Settings":
             </Typography>
             <Box
               component="pre"

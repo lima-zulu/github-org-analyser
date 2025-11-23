@@ -1,4 +1,7 @@
 {
+  "appearance": {
+    "defaultDarkMode": true
+  },
   "thresholds": {
     "inactiveRepoMonths": 12,
     "staleBranchDays": 90,

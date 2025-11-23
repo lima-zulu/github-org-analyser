@@ -83,6 +83,28 @@ class GitHubApiService {
   }
 
   /**
+   * Get all members of an organization
+   */
+  async getOrgMembers(org) {
+    let allMembers = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const members = await this.get(`/orgs/${org}/members`, {
+        per_page: 100,
+        page
+      });
+
+      allMembers = allMembers.concat(members);
+      hasMore = members.length === 100;
+      page++;
+    }
+
+    return allMembers;
+  }
+
+  /**
    * Get the most recent pull request for a repository
    */
   async getLastPullRequest(owner, repo) {
