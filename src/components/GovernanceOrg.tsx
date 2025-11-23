@@ -90,31 +90,8 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
         // Get outside collaborators (Feature 8)
         const outsideCollabs = await apiService.getOutsideCollaborators(orgName);
 
-        // Get repos for each outside collaborator
-        const repos = await apiService.getOrgRepositories(orgName);
-        const collabsWithRepos = [];
-
-        for (const collab of outsideCollabs) {
-          // Count repos this collaborator has access to
-          const repoList = [];
-          for (const repo of repos) {
-            const collaborators = await apiService.getRepoCollaborators(orgName, repo.name);
-            const hasAccess = collaborators.some(c => c.login === collab.login);
-            if (hasAccess) {
-              repoList.push(repo.name);
-            }
-          }
-
-          collabsWithRepos.push({
-            login: collab.login,
-            url: collab.html_url,
-            repoCount: repoList.length,
-            repos: repoList,
-          });
-        }
-
-        const totalOutsideCollabs = collabsWithRepos.length;
-        const outsideCollaborators = collabsWithRepos;
+        const totalOutsideCollabs = outsideCollabs.length;
+        const outsideCollaborators = outsideCollabs;
 
         // Sort apps by name
         appsWithOwner.sort((a, b) => (a.app_slug || '').localeCompare(b.app_slug || ''));
@@ -214,7 +191,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h5" gutterBottom>
-            Governance (Organisation Level)
+            Organisation Governance
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
             Organisation-wide governance metrics including org owners, admin users, outside
@@ -279,21 +256,14 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
           columns={[
             {
               field: 'login',
-              headerName: 'Username',
+              headerName: 'User',
               renderCell: row => (
-                <Link href={row.url} target="_blank" rel="noopener">
-                  {row.login}
-                </Link>
-              ),
-            },
-            { field: 'repoCount', headerName: 'Repository Count' },
-            {
-              field: 'repos',
-              headerName: 'Repositories',
-              renderCell: row => (
-                <Tooltip title={row.repos.join(', ')}>
-                  <span>{row.repoCount} repos</span>
-                </Tooltip>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Avatar src={row.avatar_url} alt={row.login} sx={{ width: 40, height: 40 }} />
+                  <Link href={row.html_url} target="_blank" rel="noopener">
+                    {row.login}
+                  </Link>
+                </Box>
               ),
             },
           ]}

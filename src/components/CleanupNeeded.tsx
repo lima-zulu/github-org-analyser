@@ -309,7 +309,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h5" gutterBottom>
-            Cleanup Needed
+            Cleanup
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
             Identifies inactive repositories, stale branches, and old open pull requests that may

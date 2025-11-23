@@ -30,10 +30,10 @@ User-adjustable settings (thresholds, cache TTL, display limits) are in `src/uti
 
 - Each tab manages its own data fetching and state - no global store
 - Tabs lazy-load on first visit via `isActive` prop; `hasLoaded` prevents re-fetching on tab switches
-- Caching: localStorage with TTL, keys follow `github-org-analyser-{org}-{dataType}` pattern
-- Each tab's refresh button bypasses cache via `skipCache=true`
-- Token: sessionStorage (cleared on browser close); theme: localStorage (persists)
-- Single `GitHubApiService` instance created in App.tsx, passed to all tabs
+- Caching: localStorage with TTL, keys follow `github-org-analyser-{org}-{dataType}` pattern; each tab's refresh button bypasses cache via `skipCache=true`
+- Token stored in sessionStorage (cleared on browser close); settings and cache in localStorage (persists)
+- Per-tab caching is intentional: tabs call different API endpoints with minimal overlap, so global caching would add complexity without meaningful performance benefit
+- TypeScript: `module: ESNext` and `moduleResolution: bundler` for Vite/bundler-based frontends (as opposed to `NodeNext` for Node.js backends); `lib` includes DOM types since this runs in browser
 
 ## Known Issues
 
@@ -41,11 +41,10 @@ User-adjustable settings (thresholds, cache TTL, display limits) are in `src/uti
 
 - TypeScript `strict` mode disabled - enabling requires fixing type errors across the codebase
 - `@typescript-eslint/no-explicit-any` disabled - enabling requires replacing `any` types with proper definitions
-- tsconfig review needed - review `module`, `moduleResolution`, `lib` and other compiler options
-- Repo Governance: skip Dependabot check for forked repos
-- Repo Governance: new table showing non-forked repos with Dependabot disabled
-- Repo Governance: skip Dependabot check for repos identified as having Dependabot disabled
 
 ### Won't Fix
 
-- Console shows 404 errors for private GitHub Apps - the `/apps/{slug}` endpoint returns 404 for internal apps and there's no way to know beforehand; browser network errors can't be suppressed
+- Console shows 404 errors in Governance tabs - these endpoints return 404 when features are unavailable and there's no way to check beforehand; browser network errors can't be suppressed:
+  - `/apps/{slug}` - private/internal GitHub Apps
+  - `/vulnerability-alerts` - repos where Dependabot alerts are not available
+  - `/branches/{branch}/protection` - branch protection not configured

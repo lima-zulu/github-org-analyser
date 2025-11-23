@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, SyntheticEvent } from 'react';
-import { Box, Tabs, Tab, Alert, Snackbar, AlertColor } from '@mui/material';
+import { Box, Tabs, Tab, Alert, Snackbar, AlertColor, Tooltip } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import HomeIcon from '@mui/icons-material/Home';
 import ArchiveIcon from '@mui/icons-material/Archive';
+import SecurityIcon from '@mui/icons-material/Security';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import BusinessIcon from '@mui/icons-material/Business';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -12,6 +13,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import { getTheme } from './theme';
 import GitHubApiService from './services/githubApi';
 import CleanupNeeded from './components/CleanupNeeded';
+import Security from './components/Security';
 import GovernanceRepo from './components/GovernanceRepo';
 import GovernanceOrg from './components/GovernanceOrg';
 import Costs from './components/Costs';
@@ -156,13 +158,30 @@ function App() {
             variant="scrollable"
             scrollButtons="auto"
           >
-            <Tab icon={<HomeIcon />} aria-label="Home" />
-            <Tab icon={<ArchiveIcon />} aria-label="Cleanup" />
-            <Tab icon={<GitHubIcon />} aria-label="Repos" />
-            <Tab icon={<BusinessIcon />} aria-label="Org" />
-            <Tab icon={<AttachMoneyIcon />} aria-label="Costs" />
-            <Tab icon={<InfoIcon />} aria-label="FAQ" />
-            <Tab icon={<SettingsIcon />} aria-label="Settings" />
+            <Tooltip title="Home">
+              <Tab icon={<HomeIcon />} aria-label="Home" />
+            </Tooltip>
+            <Tooltip title="Cleanup">
+              <Tab icon={<ArchiveIcon />} aria-label="Cleanup" />
+            </Tooltip>
+            <Tooltip title="Security">
+              <Tab icon={<SecurityIcon />} aria-label="Security" />
+            </Tooltip>
+            <Tooltip title="Repository Governance">
+              <Tab icon={<GitHubIcon />} aria-label="Repository Governance" />
+            </Tooltip>
+            <Tooltip title="Organisation Governance">
+              <Tab icon={<BusinessIcon />} aria-label="Organisation Governance" />
+            </Tooltip>
+            <Tooltip title="Costs">
+              <Tab icon={<AttachMoneyIcon />} aria-label="Costs" />
+            </Tooltip>
+            <Tooltip title="FAQ">
+              <Tab icon={<InfoIcon />} aria-label="FAQ" />
+            </Tooltip>
+            <Tooltip title="Settings">
+              <Tab icon={<SettingsIcon />} aria-label="Settings" />
+            </Tooltip>
           </Tabs>
         </Box>
 
@@ -178,26 +197,29 @@ function App() {
             />
           </Box>
           <Box sx={{ display: activeTab === 2 ? 'block' : 'none' }}>
-            <GovernanceRepo
-              apiService={apiService}
-              orgName={selectedOrg}
-              isActive={activeTab === 2}
-            />
+            <Security apiService={apiService} orgName={selectedOrg} isActive={activeTab === 2} />
           </Box>
           <Box sx={{ display: activeTab === 3 ? 'block' : 'none' }}>
-            <GovernanceOrg
+            <GovernanceRepo
               apiService={apiService}
               orgName={selectedOrg}
               isActive={activeTab === 3}
             />
           </Box>
           <Box sx={{ display: activeTab === 4 ? 'block' : 'none' }}>
-            <Costs apiService={apiService} orgName={selectedOrg} isActive={activeTab === 4} />
+            <GovernanceOrg
+              apiService={apiService}
+              orgName={selectedOrg}
+              isActive={activeTab === 4}
+            />
           </Box>
           <Box sx={{ display: activeTab === 5 ? 'block' : 'none' }}>
-            <FAQ />
+            <Costs apiService={apiService} orgName={selectedOrg} isActive={activeTab === 5} />
           </Box>
           <Box sx={{ display: activeTab === 6 ? 'block' : 'none' }}>
+            <FAQ />
+          </Box>
+          <Box sx={{ display: activeTab === 7 ? 'block' : 'none' }}>
             <Settings
               token={token}
               tokenInput={tokenInput}

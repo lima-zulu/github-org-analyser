@@ -463,6 +463,27 @@ class GitHubApiService {
     }
   }
 
+  /**
+   * Check if Dependabot/vulnerability alerts are enabled for a repository
+   * Returns true if enabled, false if disabled
+   */
+  async isDependabotEnabled(owner, repo) {
+    try {
+      const response = await fetch(
+        `${GITHUB_API_BASE}/repos/${owner}/${repo}/vulnerability-alerts`,
+        {
+          method: 'GET',
+          headers: this.headers,
+        },
+      );
+      // 204 = enabled, 404 = disabled
+      return response.status === 204;
+    } catch (error) {
+      console.warn(`Failed to check Dependabot status for ${owner}/${repo}:`, error);
+      return true; // Assume enabled on error to avoid false positives
+    }
+  }
+
   // ============================================
   // BILLING API METHODS
   // ============================================
