@@ -52,7 +52,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
 
       setLoading(true);
       setError(null);
-      setProgress({ current: 0, total: 0 });
+      setProgress({ current: 0, total: 0, repoName: '' });
 
       try {
         // Get all repositories
@@ -99,7 +99,9 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
           const lastPRDate = lastPR ? new Date(lastPR.updated_at) : null;
           const lastActivity = lastPRDate && lastPRDate > pushedAt ? lastPRDate : pushedAt;
           const isLastPR = lastPRDate && lastPRDate > pushedAt;
-          const daysSinceActivity = Math.floor((new Date() - lastActivity) / (1000 * 60 * 60 * 24));
+          const daysSinceActivity = Math.floor(
+            (new Date().getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24),
+          );
 
           if (lastActivity < inactiveCutoffDate) {
             reposWithActivity.push({
@@ -169,7 +171,9 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
 
           for (const pr of openPRs) {
             const createdDate = new Date(pr.created_at);
-            const daysOpen = Math.floor((new Date() - createdDate) / (1000 * 60 * 60 * 24));
+            const daysOpen = Math.floor(
+              (new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
+            );
 
             if (createdDate < prCutoffDate) {
               oldPRCount++;
@@ -232,7 +236,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
           config.cache.ttlHours,
         );
       } catch (err) {
-        setError(err.message);
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }

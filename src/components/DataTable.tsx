@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import {
   Table,
   TableBody,
@@ -11,51 +11,48 @@ import {
   Typography,
 } from '@mui/material';
 
-/**
- * Reusable DataTable component with pagination.
- *
- * Column definition format (similar to MUI DataGrid for easy migration):
- * {
- *   field: string,           // Key in row object (used if no renderCell)
- *   headerName: string,      // Column header text
- *   align?: 'left' | 'center' | 'right',
- *   width?: number | string,
- *   renderCell?: (row) => ReactNode,  // Custom cell renderer
- * }
- *
- * @param {Object} props
- * @param {Array} props.columns - Column definitions
- * @param {Array} props.rows - Data rows
- * @param {Function|string} props.getRowId - Function or field name to get unique row ID
- * @param {number} props.defaultRowsPerPage - Initial rows per page (default: 10)
- * @param {Array} props.rowsPerPageOptions - Options for rows per page selector
- * @param {string} props.emptyMessage - Message when no rows (default: 'No data found')
- */
-function DataTable({
+interface Column<T> {
+  field: string;
+  headerName: string;
+  align?: 'left' | 'center' | 'right';
+  width?: number | string;
+  renderCell?: (row: T) => ReactNode;
+}
+
+interface DataTableProps<T> {
+  columns: Column<T>[];
+  rows: T[];
+  getRowId?: string | ((row: T) => string | number);
+  defaultRowsPerPage?: number;
+  rowsPerPageOptions?: number[];
+  emptyMessage?: string;
+}
+
+function DataTable<T extends Record<string, unknown>>({
   columns,
   rows,
   getRowId = 'id',
   defaultRowsPerPage = 10,
   rowsPerPageOptions = [5, 10, 25, 50],
   emptyMessage = 'No data found',
-}) {
+}: DataTableProps<T>) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
 
-  const handleChangePage = (event, newPage) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = event => {
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  const getRowKey = (row, index) => {
+  const getRowKey = (row: T, index: number): string | number => {
     if (typeof getRowId === 'function') {
       return getRowId(row);
     }
-    return row[getRowId] ?? index;
+    return (row[getRowId] as string | number) ?? index;
   };
 
   const paginatedRows = rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -90,7 +87,7 @@ function DataTable({
               <TableRow key={getRowKey(row, index)}>
                 {columns.map(column => (
                   <TableCell key={column.field} align={column.align || 'left'}>
-                    {column.renderCell ? column.renderCell(row) : row[column.field]}
+                    {column.renderCell ? column.renderCell(row) : (row[column.field] as ReactNode)}
                   </TableCell>
                 ))}
               </TableRow>

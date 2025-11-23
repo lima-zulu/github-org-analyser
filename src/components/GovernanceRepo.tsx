@@ -81,7 +81,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             ]);
 
             const topLanguages = Object.entries(languages || {})
-              .sort((a, b) => b[1] - a[1])
+              .sort((a, b) => (b[1] as number) - (a[1] as number))
               .slice(0, 3)
               .map(([lang]) => lang);
 
@@ -139,7 +139,9 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
             });
           }
 
-          forksWithDetails.sort((a, b) => new Date(b.forkLastPushed) - new Date(a.forkLastPushed));
+          forksWithDetails.sort(
+            (a, b) => new Date(b.forkLastPushed).getTime() - new Date(a.forkLastPushed).getTime(),
+          );
           return forksWithDetails;
         };
 
@@ -226,7 +228,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
           config.cache.ttlHours,
         );
       } catch (err) {
-        setError(err.message);
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }
@@ -249,7 +251,7 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
   const formatRelativeTime = date => {
     if (!date) return 'N/A';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    const days = Math.floor((new Date() - dateObj) / (1000 * 60 * 60 * 24));
+    const days = Math.floor((new Date().getTime() - dateObj.getTime()) / (1000 * 60 * 60 * 24));
     if (days === 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days < 30) return `${days} days ago`;

@@ -122,7 +122,7 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
           config.cache.ttlHours,
         );
       } catch (err) {
-        setError(err.message);
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }

@@ -33,17 +33,12 @@ User-adjustable settings (thresholds, cache TTL, display limits) are in `src/uti
 - Caching: localStorage with TTL, keys follow `github-org-analyser-{org}-{dataType}` pattern; each tab's refresh button bypasses cache via `skipCache=true`
 - Token stored in sessionStorage (cleared on browser close); settings and cache in localStorage (persists)
 - Per-tab caching is intentional: tabs call different API endpoints with minimal overlap, so global caching would add complexity without meaningful performance benefit
-- TypeScript: `module: ESNext` and `moduleResolution: bundler` for Vite/bundler-based frontends (as opposed to `NodeNext` for Node.js backends); `lib` includes DOM types since this runs in browser
+- TypeScript: `module: ESNext` and `moduleResolution: bundler` for Vite/bundler-based frontends (as opposed to `NodeNext` for Node.js backends); `lib` includes DOM types since this runs in browser; strict mode enabled
+- Types: component-specific types live in the component file; shared types (API responses, common props) live in `src/types/index.ts`
 
 ## Known Issues
 
-### Backlog
-
-- TypeScript `strict` mode disabled - enabling requires fixing type errors across the codebase
-
-### Won't Fix
-
-- Console shows 404 errors in Governance tabs - these endpoints return 404 when features are unavailable and there's no way to check beforehand; browser network errors can't be suppressed:
+- Console shows 404 errors in Governance tabs - GitHub API provides no way to check availability beforehand, so we must call these endpoints and handle 404s; browser network errors can't be suppressed:
   - `/apps/{slug}` - private/internal GitHub Apps
   - `/vulnerability-alerts` - repos where Dependabot alerts are not available
   - `/branches/{branch}/protection` - branch protection not configured

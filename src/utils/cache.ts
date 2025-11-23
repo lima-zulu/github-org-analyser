@@ -30,7 +30,7 @@ export function saveToCache(orgName, dataType, data, ttlHours) {
     };
     localStorage.setItem(key, JSON.stringify(cacheObject));
   } catch (e) {
-    if (e.name === 'QuotaExceededError') {
+    if ((e as Error).name === 'QuotaExceededError') {
       console.warn('localStorage quota exceeded, cache not saved');
       // Try to clear old caches to make room
       clearExpiredCaches();

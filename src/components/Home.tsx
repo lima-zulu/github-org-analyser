@@ -124,7 +124,7 @@ function Home({ apiService, orgName, isActive }) {
           }
         });
         const sortedLanguages = Object.entries(languageCounts)
-          .sort((a, b) => b[1] - a[1])
+          .sort((a, b) => (b[1] as number) - (a[1] as number))
           .slice(0, 5)
           .map(([name, count]) => ({ name, count }));
         setTopLanguages(sortedLanguages);
@@ -139,7 +139,7 @@ function Home({ apiService, orgName, isActive }) {
           }
         });
         const sortedTopics = Object.entries(topicCounts)
-          .sort((a, b) => b[1] - a[1])
+          .sort((a, b) => (b[1] as number) - (a[1] as number))
           .slice(0, 10)
           .map(([name, count]) => ({ name, count }));
         setTopTopics(sortedTopics);
@@ -160,7 +160,7 @@ function Home({ apiService, orgName, isActive }) {
           config.cache.ttlHours,
         );
       } catch (err) {
-        setError(err.message);
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }
