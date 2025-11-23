@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -28,7 +28,7 @@ import { getConfig } from '../utils/config';
 import { saveToCache, loadFromCache } from '../utils/cache';
 
 function Home({ apiService, orgName, isActive }) {
-  const config = getConfig();
+  const config = useMemo(() => getConfig(), []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
