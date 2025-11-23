@@ -102,8 +102,8 @@ export function clearExpiredCaches() {
           if (now > cacheObject.expiresAt) {
             keysToRemove.push(key);
           }
-        } catch {
-          // Invalid cache entry, mark for removal
+        } catch (error) {
+          console.warn(`Invalid cache entry ${key}, marking for removal:`, error);
           keysToRemove.push(key);
         }
       }

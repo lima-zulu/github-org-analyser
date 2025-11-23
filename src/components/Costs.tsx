@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -28,114 +28,116 @@ function Costs({ apiService, orgName, isActive }) {
   const [budgets, setBudgets] = useState([]);
   const [actionsBilling, setActionsBilling] = useState(null);
 
-  const fetchData = async (skipCache = false) => {
-    if (!apiService || !orgName) return;
+  const fetchData = useCallback(
+    async (skipCache = false) => {
+      if (!apiService || !orgName) return;
 
-    // Try to load from cache first
-    if (!skipCache) {
-      const cachedData = loadFromCache(orgName, 'costs');
-      // Validate cache has all expected fields (actionsBilling was added later)
-      if (cachedData && 'actionsBilling' in cachedData) {
-        setOrgData(cachedData.orgData);
-        setCopilotBilling(cachedData.copilotBilling);
-        setBudgets(cachedData.budgets || []);
-        setActionsBilling(cachedData.actionsBilling);
+      // Try to load from cache first
+      if (!skipCache) {
+        const cachedData = loadFromCache(orgName, 'costs');
+        // Validate cache has all expected fields (actionsBilling was added later)
+        if (cachedData && 'actionsBilling' in cachedData) {
+          setOrgData(cachedData.orgData);
+          setCopilotBilling(cachedData.copilotBilling);
+          setBudgets(cachedData.budgets || []);
+          setActionsBilling(cachedData.actionsBilling);
+          setHasLoaded(true);
+          return;
+        }
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Get current month boundaries for filtering
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        // Fetch all billing data in parallel
+        const [org, copilot, budgetsList, billingUsageData] = await Promise.all([
+          apiService.getOrganization(orgName),
+          apiService.getCopilotBilling(orgName),
+          apiService.getBudgets(orgName),
+          apiService.getBillingUsageDetails(orgName),
+        ]);
+
+        const budgetsData = Array.isArray(budgetsList) ? budgetsList : [];
+
+        setOrgData(org);
+        setCopilotBilling(copilot);
+        setBudgets(budgetsData);
+
+        // Process billing usage data
+        let actionsData = null;
+        if (billingUsageData && Array.isArray(billingUsageData.usageItems)) {
+          // Filter to current month and aggregate by product
+          const currentMonthItems = billingUsageData.usageItems.filter(item => {
+            const itemDate = new Date(item.date);
+            return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+          });
+
+          // Aggregate Actions minutes
+          let totalMinutes = 0;
+          let ubuntuMinutes = 0;
+          let macosMinutes = 0;
+          let windowsMinutes = 0;
+
+          currentMonthItems.forEach(item => {
+            const product = (item.product || '').toLowerCase();
+            const sku = (item.sku || '').toLowerCase();
+
+            if (product === 'actions' && item.unitType === 'Minutes') {
+              const qty = item.quantity || 0;
+              totalMinutes += qty;
+              if (sku.includes('linux')) ubuntuMinutes += qty;
+              else if (sku.includes('macos')) macosMinutes += qty;
+              else if (sku.includes('windows')) windowsMinutes += qty;
+            }
+          });
+
+          actionsData = {
+            minutes: Math.round(totalMinutes),
+            included: config.billing.includedActionsMinutes,
+            paid: Math.max(0, Math.round(totalMinutes) - config.billing.includedActionsMinutes),
+            breakdown: {
+              ubuntu: Math.round(ubuntuMinutes),
+              macos: Math.round(macosMinutes),
+              windows: Math.round(windowsMinutes),
+            },
+          };
+        }
+
+        setActionsBilling(actionsData);
         setHasLoaded(true);
-        return;
-      }
-    }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Get current month boundaries for filtering
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      // Fetch all billing data in parallel
-      const [org, copilot, budgetsList, billingUsageData] = await Promise.all([
-        apiService.getOrganization(orgName),
-        apiService.getCopilotBilling(orgName),
-        apiService.getBudgets(orgName),
-        apiService.getBillingUsageDetails(orgName),
-      ]);
-
-      const budgetsData = Array.isArray(budgetsList) ? budgetsList : [];
-
-      setOrgData(org);
-      setCopilotBilling(copilot);
-      setBudgets(budgetsData);
-
-      // Process billing usage data
-      let actionsData = null;
-      if (billingUsageData && Array.isArray(billingUsageData.usageItems)) {
-        // Filter to current month and aggregate by product
-        const currentMonthItems = billingUsageData.usageItems.filter(item => {
-          const itemDate = new Date(item.date);
-          return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
-        });
-
-        // Aggregate Actions minutes
-        let totalMinutes = 0;
-        let ubuntuMinutes = 0;
-        let macosMinutes = 0;
-        let windowsMinutes = 0;
-
-        currentMonthItems.forEach(item => {
-          const product = (item.product || '').toLowerCase();
-          const sku = (item.sku || '').toLowerCase();
-
-          if (product === 'actions' && item.unitType === 'Minutes') {
-            const qty = item.quantity || 0;
-            totalMinutes += qty;
-            if (sku.includes('linux')) ubuntuMinutes += qty;
-            else if (sku.includes('macos')) macosMinutes += qty;
-            else if (sku.includes('windows')) windowsMinutes += qty;
-          }
-        });
-
-        actionsData = {
-          minutes: Math.round(totalMinutes),
-          included: config.billing.includedActionsMinutes,
-          paid: Math.max(0, Math.round(totalMinutes) - config.billing.includedActionsMinutes),
-          breakdown: {
-            ubuntu: Math.round(ubuntuMinutes),
-            macos: Math.round(macosMinutes),
-            windows: Math.round(windowsMinutes),
+        // Save to cache
+        saveToCache(
+          orgName,
+          'costs',
+          {
+            orgData: org,
+            copilotBilling: copilot,
+            budgets: budgetsData,
+            actionsBilling: actionsData,
           },
-        };
+          config.cache.ttlHours,
+        );
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-
-      setActionsBilling(actionsData);
-      setHasLoaded(true);
-
-      // Save to cache
-      saveToCache(
-        orgName,
-        'costs',
-        {
-          orgData: org,
-          copilotBilling: copilot,
-          budgets: budgetsData,
-          actionsBilling: actionsData,
-        },
-        config.cache.ttlHours,
-      );
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [apiService, orgName, config],
+  );
 
   useEffect(() => {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, hasLoaded, apiService, orgName]);
+  }, [isActive, hasLoaded, apiService, orgName, fetchData]);
 
   const formatCurrency = amount => {
     if (amount === null || amount === undefined) return '-';

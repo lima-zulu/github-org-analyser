@@ -49,7 +49,8 @@ class GitHubApiService {
     try {
       const user = await this.get('/user');
       return { valid: true, user };
-    } catch {
+    } catch (error) {
+      console.warn('Token validation failed:', error);
       return { valid: false, error: (error as Error).message };
     }
   }
@@ -124,8 +125,8 @@ class GitHubApiService {
         per_page: 1,
       });
       return prs.length > 0 ? prs[0] : null;
-    } catch {
-      // If error (e.g., repo has no PRs), return null
+    } catch (error) {
+      console.warn(`Failed to get latest PR for ${owner}/${repo}:`, error);
       return null;
     }
   }
@@ -148,8 +149,8 @@ class GitHubApiService {
         allBranches = allBranches.concat(branches);
         hasMore = branches.length === 100;
         page++;
-      } catch {
-        // If error, stop pagination
+      } catch (error) {
+        console.warn(`Failed to get branches for ${owner}/${repo}:`, error);
         hasMore = false;
       }
     }
@@ -163,7 +164,8 @@ class GitHubApiService {
   async getBranchDetails(owner, repo, branch) {
     try {
       return await this.get(`/repos/${owner}/${repo}/branches/${branch}`);
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to get branch details for ${owner}/${repo}/${branch}:`, error);
       return null;
     }
   }
@@ -187,7 +189,8 @@ class GitHubApiService {
         allPRs = allPRs.concat(prs);
         hasMore = prs.length === 100;
         page++;
-      } catch {
+      } catch (error) {
+        console.warn(`Failed to get open PRs for ${owner}/${repo}:`, error);
         hasMore = false;
       }
     }
@@ -202,10 +205,11 @@ class GitHubApiService {
     try {
       await this.get(`/repos/${owner}/${repo}/branches/${branch}/protection`);
       return true; // 200 response means protected
-    } catch {
-      if (error.status === 404) {
+    } catch (error) {
+      if ((error as any).status === 404) {
         return false; // 404 means not protected
       }
+      console.warn(`Failed to check branch protection for ${owner}/${repo}/${branch}:`, error);
       throw error; // Other errors should be re-thrown
     }
   }
@@ -228,7 +232,8 @@ class GitHubApiService {
         allCollaborators = allCollaborators.concat(collaborators);
         hasMore = collaborators.length === 100;
         page++;
-      } catch {
+      } catch (error) {
+        console.warn(`Failed to get collaborators for ${owner}/${repo}:`, error);
         hasMore = false;
       }
     }
@@ -242,7 +247,11 @@ class GitHubApiService {
   async getAppBySlug(slug) {
     try {
       return await this.get(`/apps/${slug}`);
-    } catch {
+    } catch (error) {
+      // 404 is expected for private/internal apps - don't warn
+      if ((error as any).status !== 404) {
+        console.warn(`Failed to get app by slug ${slug}:`, error);
+      }
       return null;
     }
   }
@@ -254,8 +263,8 @@ class GitHubApiService {
     try {
       const response = await this.get(`/orgs/${org}/installations`);
       return response.installations || [];
-    } catch {
-      // If error or no access, return empty array
+    } catch (error) {
+      console.warn(`Failed to get installed apps for org ${org}:`, error);
       return [];
     }
   }
@@ -278,7 +287,8 @@ class GitHubApiService {
         allCollaborators = allCollaborators.concat(collaborators);
         hasMore = collaborators.length === 100;
         page++;
-      } catch {
+      } catch (error) {
+        console.warn(`Failed to get outside collaborators for org ${org}:`, error);
         hasMore = false;
       }
     }
@@ -301,7 +311,8 @@ class GitHubApiService {
   async getUser(username) {
     try {
       return await this.get(`/users/${username}`);
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to get user ${username}:`, error);
       return null;
     }
   }
@@ -325,7 +336,8 @@ class GitHubApiService {
         allAdmins = allAdmins.concat(admins);
         hasMore = admins.length === 100;
         page++;
-      } catch {
+      } catch (error) {
+        console.warn(`Failed to get admins for org ${org}:`, error);
         hasMore = false;
       }
     }
@@ -351,7 +363,8 @@ class GitHubApiService {
         allTeams = allTeams.concat(teams);
         hasMore = teams.length === 100;
         page++;
-      } catch {
+      } catch (error) {
+        console.warn(`Failed to get teams for ${owner}/${repo}:`, error);
         hasMore = false;
       }
     }
@@ -379,7 +392,8 @@ class GitHubApiService {
         allCollaborators = allCollaborators.concat(collaborators);
         hasMore = collaborators.length === 100;
         page++;
-      } catch {
+      } catch (error) {
+        console.warn(`Failed to get direct collaborators for ${owner}/${repo}:`, error);
         hasMore = false;
       }
     }
@@ -393,7 +407,8 @@ class GitHubApiService {
   async getRepository(owner, repo) {
     try {
       return await this.get(`/repos/${owner}/${repo}`);
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to get repository ${owner}/${repo}:`, error);
       return null;
     }
   }
@@ -405,7 +420,8 @@ class GitHubApiService {
   async getRepoLanguages(owner, repo) {
     try {
       return await this.get(`/repos/${owner}/${repo}/languages`);
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to get languages for ${owner}/${repo}:`, error);
       return {};
     }
   }
@@ -416,7 +432,8 @@ class GitHubApiService {
   async compareBranches(owner, repo, base, head) {
     try {
       return await this.get(`/repos/${owner}/${repo}/compare/${base}...${head}`);
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to compare branches ${base}...${head} for ${owner}/${repo}:`, error);
       return null;
     }
   }
@@ -440,8 +457,8 @@ class GitHubApiService {
       });
 
       return Array.isArray(alerts) ? alerts : [];
-    } catch {
-      // Return empty array if no access or no alerts
+    } catch (error) {
+      console.warn(`Failed to get Dependabot alerts for ${owner}/${repo}:`, error);
       return [];
     }
   }
@@ -461,7 +478,8 @@ class GitHubApiService {
       if (options.month) params.month = options.month;
       // Use the new billing platform endpoint format
       return await this.get(`/organizations/${org}/settings/billing/usage`, params);
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to get billing usage for org ${org}:`, error);
       return null;
     }
   }
@@ -473,7 +491,8 @@ class GitHubApiService {
   async getCopilotBilling(org: string) {
     try {
       return await this.get(`/orgs/${org}/copilot/billing`);
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to get Copilot billing for org ${org}:`, error);
       return null;
     }
   }
@@ -486,7 +505,8 @@ class GitHubApiService {
       // Use new billing platform endpoint format
       const response = await this.get(`/organizations/${org}/settings/billing/budgets`);
       return response.budgets || response || [];
-    } catch {
+    } catch (error) {
+      console.warn(`Failed to get budgets for org ${org}:`, error);
       return [];
     }
   }

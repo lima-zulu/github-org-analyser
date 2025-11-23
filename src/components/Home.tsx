@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -46,131 +46,133 @@ function Home({ apiService, orgName, isActive }) {
   const [topLanguages, setTopLanguages] = useState([]);
   const [topTopics, setTopTopics] = useState([]);
 
-  const fetchData = async (skipCache = false) => {
-    if (!apiService || !orgName) return;
+  const fetchData = useCallback(
+    async (skipCache = false) => {
+      if (!apiService || !orgName) return;
 
-    // Try to load from cache first
-    if (!skipCache) {
-      const cachedData = loadFromCache(orgName, 'home');
-      if (cachedData && 'repoBreakdown' in cachedData) {
-        setOrgData(cachedData.orgData);
-        setMemberCount(cachedData.memberCount);
-        setRepoBreakdown(cachedData.repoBreakdown);
-        setTopLanguages(cachedData.topLanguages);
-        setTopTopics(cachedData.topTopics);
-        setHasLoaded(true);
-        return;
+      // Try to load from cache first
+      if (!skipCache) {
+        const cachedData = loadFromCache(orgName, 'home');
+        if (cachedData && 'repoBreakdown' in cachedData) {
+          setOrgData(cachedData.orgData);
+          setMemberCount(cachedData.memberCount);
+          setRepoBreakdown(cachedData.repoBreakdown);
+          setTopLanguages(cachedData.topLanguages);
+          setTopTopics(cachedData.topTopics);
+          setHasLoaded(true);
+          return;
+        }
       }
-    }
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Fetch org details and repos in parallel
-      const [org, repos, members] = await Promise.all([
-        apiService.getOrganization(orgName),
-        apiService.getOrgRepositories(orgName),
-        apiService.getOrgMembers(orgName),
-      ]);
+      try {
+        // Fetch org details and repos in parallel
+        const [org, repos, members] = await Promise.all([
+          apiService.getOrganization(orgName),
+          apiService.getOrgRepositories(orgName),
+          apiService.getOrgMembers(orgName),
+        ]);
 
-      setOrgData(org);
-      setMemberCount(members.length);
+        setOrgData(org);
+        setMemberCount(members.length);
 
-      // Calculate repo breakdown
-      const breakdown = {
-        publicActive: 0,
-        publicArchived: 0,
-        privateActive: 0,
-        privateArchived: 0,
-        forkedActive: 0,
-        forkedArchived: 0,
-        total: repos.length,
-      };
+        // Calculate repo breakdown
+        const breakdown = {
+          publicActive: 0,
+          publicArchived: 0,
+          privateActive: 0,
+          privateArchived: 0,
+          forkedActive: 0,
+          forkedArchived: 0,
+          total: repos.length,
+        };
 
-      repos.forEach(repo => {
-        if (repo.fork) {
-          // Forked repos (always public)
-          if (repo.archived) {
-            breakdown.forkedArchived++;
+        repos.forEach(repo => {
+          if (repo.fork) {
+            // Forked repos (always public)
+            if (repo.archived) {
+              breakdown.forkedArchived++;
+            } else {
+              breakdown.forkedActive++;
+            }
+          } else if (repo.private) {
+            // Private repos
+            if (repo.archived) {
+              breakdown.privateArchived++;
+            } else {
+              breakdown.privateActive++;
+            }
           } else {
-            breakdown.forkedActive++;
+            // Public repos (non-forked)
+            if (repo.archived) {
+              breakdown.publicArchived++;
+            } else {
+              breakdown.publicActive++;
+            }
           }
-        } else if (repo.private) {
-          // Private repos
-          if (repo.archived) {
-            breakdown.privateArchived++;
-          } else {
-            breakdown.privateActive++;
+        });
+
+        setRepoBreakdown(breakdown);
+
+        // Calculate top languages from active non-forked repos
+        const languageCounts = {};
+        repos.forEach(repo => {
+          if (repo.language && !repo.archived && !repo.fork) {
+            languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
           }
-        } else {
-          // Public repos (non-forked)
-          if (repo.archived) {
-            breakdown.publicArchived++;
-          } else {
-            breakdown.publicActive++;
+        });
+        const sortedLanguages = Object.entries(languageCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, count]) => ({ name, count }));
+        setTopLanguages(sortedLanguages);
+
+        // Calculate top topics from repos
+        const topicCounts = {};
+        repos.forEach(repo => {
+          if (repo.topics && repo.topics.length > 0) {
+            repo.topics.forEach(topic => {
+              topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+            });
           }
-        }
-      });
+        });
+        const sortedTopics = Object.entries(topicCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([name, count]) => ({ name, count }));
+        setTopTopics(sortedTopics);
 
-      setRepoBreakdown(breakdown);
+        setHasLoaded(true);
 
-      // Calculate top languages from active non-forked repos
-      const languageCounts = {};
-      repos.forEach(repo => {
-        if (repo.language && !repo.archived && !repo.fork) {
-          languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
-        }
-      });
-      const sortedLanguages = Object.entries(languageCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, count]) => ({ name, count }));
-      setTopLanguages(sortedLanguages);
-
-      // Calculate top topics from repos
-      const topicCounts = {};
-      repos.forEach(repo => {
-        if (repo.topics && repo.topics.length > 0) {
-          repo.topics.forEach(topic => {
-            topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-          });
-        }
-      });
-      const sortedTopics = Object.entries(topicCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([name, count]) => ({ name, count }));
-      setTopTopics(sortedTopics);
-
-      setHasLoaded(true);
-
-      // Save to cache
-      saveToCache(
-        orgName,
-        'home',
-        {
-          orgData: org,
-          memberCount: members.length,
-          repoBreakdown: breakdown,
-          topLanguages: sortedLanguages,
-          topTopics: sortedTopics,
-        },
-        config.cache.ttlHours,
-      );
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Save to cache
+        saveToCache(
+          orgName,
+          'home',
+          {
+            orgData: org,
+            memberCount: members.length,
+            repoBreakdown: breakdown,
+            topLanguages: sortedLanguages,
+            topTopics: sortedTopics,
+          },
+          config.cache.ttlHours,
+        );
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [apiService, orgName, config],
+  );
 
   useEffect(() => {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, hasLoaded, apiService, orgName]);
+  }, [isActive, hasLoaded, apiService, orgName, fetchData]);
 
   if (!apiService || !orgName) {
     return (

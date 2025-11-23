@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, SyntheticEvent } from 'react';
+import { useState, useEffect, useMemo, useCallback, SyntheticEvent } from 'react';
 import { Box, Tabs, Tab, Alert, Snackbar, AlertColor } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -60,6 +60,30 @@ function App() {
 
   const theme = useMemo(() => getTheme(darkMode ? 'dark' : 'light'), [darkMode]);
 
+  const showSnackbar = useCallback((message: string, severity: AlertColor = 'info') => {
+    setSnackbar({ open: true, message, severity });
+  }, []);
+
+  const initializeApiService = useCallback(
+    async (tokenValue: string) => {
+      const service = new GitHubApiService(tokenValue);
+      setApiService(service);
+
+      try {
+        const orgs = await service.getUserOrganizations();
+        setOrganizations(orgs);
+
+        if (orgs.length === 1) {
+          setSelectedOrg(orgs[0].login);
+        }
+      } catch (error) {
+        const err = error as Error;
+        showSnackbar('Failed to load organizations: ' + err.message, 'error');
+      }
+    },
+    [showSnackbar],
+  );
+
   useEffect(() => {
     const savedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
     if (savedToken) {
@@ -67,30 +91,12 @@ function App() {
       setTokenInput(savedToken);
       initializeApiService(savedToken);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initializeApiService]);
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem(THEME_STORAGE_KEY, newMode ? 'dark' : 'light');
-  };
-
-  const initializeApiService = async (tokenValue: string) => {
-    const service = new GitHubApiService(tokenValue);
-    setApiService(service);
-
-    try {
-      const orgs = await service.getUserOrganizations();
-      setOrganizations(orgs);
-
-      if (orgs.length === 1) {
-        setSelectedOrg(orgs[0].login);
-      }
-    } catch (error) {
-      const err = error as Error;
-      showSnackbar('Failed to load organizations: ' + err.message, 'error');
-    }
   };
 
   const handleValidateToken = async () => {
@@ -129,10 +135,6 @@ function App() {
     setOrganizations([]);
     setSelectedOrg('');
     showSnackbar('Token cleared', 'info');
-  };
-
-  const showSnackbar = (message: string, severity: AlertColor = 'info') => {
-    setSnackbar({ open: true, message, severity });
   };
 
   const handleCloseSnackbar = () => {

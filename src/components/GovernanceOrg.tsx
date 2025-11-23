@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -28,134 +28,136 @@ function GovernanceOrg({ apiService, orgName, isActive }) {
   const [_totalOutsideCollabs, setTotalOutsideCollabs] = useState(0);
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  const fetchData = async (skipCache = false) => {
-    if (!apiService || !orgName) return;
+  const fetchData = useCallback(
+    async (skipCache = false) => {
+      if (!apiService || !orgName) return;
 
-    // Try to load from cache first
-    if (!skipCache) {
-      const cachedData = loadFromCache(orgName, 'security-org');
-      if (cachedData) {
-        setOrgData(cachedData.orgData);
-        setOrgAdmins(cachedData.orgAdmins);
-        setInstalledApps(cachedData.installedApps);
-        setOutsideCollaborators(cachedData.outsideCollaborators);
-        setTotalApps(cachedData.totalApps);
-        setTotalOutsideCollabs(cachedData.totalOutsideCollabs);
-        setHasLoaded(true);
-        return;
+      // Try to load from cache first
+      if (!skipCache) {
+        const cachedData = loadFromCache(orgName, 'security-org');
+        if (cachedData) {
+          setOrgData(cachedData.orgData);
+          setOrgAdmins(cachedData.orgAdmins);
+          setInstalledApps(cachedData.installedApps);
+          setOutsideCollaborators(cachedData.outsideCollaborators);
+          setTotalApps(cachedData.totalApps);
+          setTotalOutsideCollabs(cachedData.totalOutsideCollabs);
+          setHasLoaded(true);
+          return;
+        }
       }
-    }
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Get organization details
-      const org = await apiService.getOrganization(orgName);
-      setOrgData(org);
+      try {
+        // Get organization details
+        const org = await apiService.getOrganization(orgName);
+        setOrgData(org);
 
-      // Get org admins (Feature 9)
-      const adminsList = await apiService.getOrgAdmins(orgName);
+        // Get org admins (Feature 9)
+        const adminsList = await apiService.getOrgAdmins(orgName);
 
-      // Fetch full details for each admin to get names
-      const adminsWithDetails = await Promise.all(
-        adminsList.map(async admin => {
-          const fullDetails = await apiService.getUser(admin.login);
-          return fullDetails || admin;
-        }),
-      );
+        // Fetch full details for each admin to get names
+        const adminsWithDetails = await Promise.all(
+          adminsList.map(async admin => {
+            const fullDetails = await apiService.getUser(admin.login);
+            return fullDetails || admin;
+          }),
+        );
 
-      // Get installed apps (Feature 7)
-      const apps = await apiService.getOrgInstalledApps(orgName);
+        // Get installed apps (Feature 7)
+        const apps = await apiService.getOrgInstalledApps(orgName);
 
-      // Fetch full details for each app to get owner information
-      const appsWithOwner = await Promise.all(
-        apps.map(async app => {
-          const appDetails = await apiService.getAppBySlug(app.app_slug);
+        // Fetch full details for each app to get owner information
+        const appsWithOwner = await Promise.all(
+          apps.map(async app => {
+            const appDetails = await apiService.getAppBySlug(app.app_slug);
 
-          // If app details fetch fails (404), it's likely a private internal app
-          // Use the installation account as the owner (where it's installed)
-          const ownerLogin = appDetails?.owner?.login || app.account?.login || null;
-          const ownerType = appDetails?.owner?.type || app.account?.type || null;
+            // If app details fetch fails (404), it's likely a private internal app
+            // Use the installation account as the owner (where it's installed)
+            const ownerLogin = appDetails?.owner?.login || app.account?.login || null;
+            const ownerType = appDetails?.owner?.type || app.account?.type || null;
 
-          return {
-            ...app,
-            ownerLogin,
-            ownerType,
-          };
-        }),
-      );
+            return {
+              ...app,
+              ownerLogin,
+              ownerType,
+            };
+          }),
+        );
 
-      // Get outside collaborators (Feature 8)
-      const outsideCollabs = await apiService.getOutsideCollaborators(orgName);
+        // Get outside collaborators (Feature 8)
+        const outsideCollabs = await apiService.getOutsideCollaborators(orgName);
 
-      // Get repos for each outside collaborator
-      const repos = await apiService.getOrgRepositories(orgName);
-      const collabsWithRepos = [];
+        // Get repos for each outside collaborator
+        const repos = await apiService.getOrgRepositories(orgName);
+        const collabsWithRepos = [];
 
-      for (const collab of outsideCollabs) {
-        // Count repos this collaborator has access to
-        const repoList = [];
-        for (const repo of repos) {
-          const collaborators = await apiService.getRepoCollaborators(orgName, repo.name);
-          const hasAccess = collaborators.some(c => c.login === collab.login);
-          if (hasAccess) {
-            repoList.push(repo.name);
+        for (const collab of outsideCollabs) {
+          // Count repos this collaborator has access to
+          const repoList = [];
+          for (const repo of repos) {
+            const collaborators = await apiService.getRepoCollaborators(orgName, repo.name);
+            const hasAccess = collaborators.some(c => c.login === collab.login);
+            if (hasAccess) {
+              repoList.push(repo.name);
+            }
           }
+
+          collabsWithRepos.push({
+            login: collab.login,
+            url: collab.html_url,
+            repoCount: repoList.length,
+            repos: repoList,
+          });
         }
 
-        collabsWithRepos.push({
-          login: collab.login,
-          url: collab.html_url,
-          repoCount: repoList.length,
-          repos: repoList,
-        });
+        const totalOutsideCollabs = collabsWithRepos.length;
+        const outsideCollaborators = collabsWithRepos;
+
+        // Sort apps by name
+        appsWithOwner.sort((a, b) => (a.app_slug || '').localeCompare(b.app_slug || ''));
+
+        const totalApps = appsWithOwner.length;
+        const installedApps = appsWithOwner;
+
+        setTotalOutsideCollabs(totalOutsideCollabs);
+        setOutsideCollaborators(outsideCollaborators);
+        setTotalApps(totalApps);
+        setInstalledApps(installedApps);
+        setHasLoaded(true);
+
+        setOrgAdmins(adminsWithDetails);
+
+        // Save to cache
+        saveToCache(
+          orgName,
+          'security-org',
+          {
+            orgData: org,
+            orgAdmins: adminsWithDetails,
+            installedApps,
+            outsideCollaborators,
+            totalApps,
+            totalOutsideCollabs,
+          },
+          config.cache.ttlHours,
+        );
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-
-      const totalOutsideCollabs = collabsWithRepos.length;
-      const outsideCollaborators = collabsWithRepos;
-
-      // Sort apps by name
-      appsWithOwner.sort((a, b) => (a.app_slug || '').localeCompare(b.app_slug || ''));
-
-      const totalApps = appsWithOwner.length;
-      const installedApps = appsWithOwner;
-
-      setTotalOutsideCollabs(totalOutsideCollabs);
-      setOutsideCollaborators(outsideCollaborators);
-      setTotalApps(totalApps);
-      setInstalledApps(installedApps);
-      setHasLoaded(true);
-
-      setOrgAdmins(adminsWithDetails);
-
-      // Save to cache
-      saveToCache(
-        orgName,
-        'security-org',
-        {
-          orgData: org,
-          orgAdmins: adminsWithDetails,
-          installedApps,
-          outsideCollaborators,
-          totalApps,
-          totalOutsideCollabs,
-        },
-        config.cache.ttlHours,
-      );
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [apiService, orgName, config],
+  );
 
   useEffect(() => {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, hasLoaded, apiService, orgName]);
+  }, [isActive, hasLoaded, apiService, orgName, fetchData]);
 
   const formatDate = date => {
     if (!date) return 'N/A';

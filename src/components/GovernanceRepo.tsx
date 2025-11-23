@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -34,248 +34,250 @@ function GovernanceRepo({ apiService, orgName, isActive }) {
   const [reposWithAlerts, setReposWithAlerts] = useState([]);
   const [_totalReposWithAlerts, setTotalReposWithAlerts] = useState(0);
 
-  const fetchData = async (skipCache = false) => {
-    if (!apiService || !orgName) return;
+  const fetchData = useCallback(
+    async (skipCache = false) => {
+      if (!apiService || !orgName) return;
 
-    // Try to load from cache first
-    if (!skipCache) {
-      const cachedData = loadFromCache(orgName, 'governance-repo');
-      // Validate cache has reposWithAlerts field (added later)
-      if (cachedData && 'reposWithAlerts' in cachedData) {
-        setForkedRepos(cachedData.forkedRepos || []);
-        setTotalForks(cachedData.totalForks || 0);
-        setUnprotectedRepos(cachedData.unprotectedRepos);
-        setNoAdminRepos(cachedData.noAdminRepos);
-        setTotalUnprotected(cachedData.totalUnprotected);
-        setTotalNoAdmin(cachedData.totalNoAdmin);
-        setReposWithAlerts(cachedData.reposWithAlerts || []);
-        setTotalReposWithAlerts(cachedData.totalReposWithAlerts || 0);
-        setHasLoaded(true);
-        return;
+      // Try to load from cache first
+      if (!skipCache) {
+        const cachedData = loadFromCache(orgName, 'governance-repo');
+        // Validate cache has reposWithAlerts field (added later)
+        if (cachedData && 'reposWithAlerts' in cachedData) {
+          setForkedRepos(cachedData.forkedRepos || []);
+          setTotalForks(cachedData.totalForks || 0);
+          setUnprotectedRepos(cachedData.unprotectedRepos);
+          setNoAdminRepos(cachedData.noAdminRepos);
+          setTotalUnprotected(cachedData.totalUnprotected);
+          setTotalNoAdmin(cachedData.totalNoAdmin);
+          setReposWithAlerts(cachedData.reposWithAlerts || []);
+          setTotalReposWithAlerts(cachedData.totalReposWithAlerts || 0);
+          setHasLoaded(true);
+          return;
+        }
       }
-    }
 
-    setLoading(true);
-    setError(null);
-    setProgress({ current: 0, total: 0, repoName: '' });
+      setLoading(true);
+      setError(null);
+      setProgress({ current: 0, total: 0, repoName: '' });
 
-    try {
-      // Get all repositories
-      const repos = await apiService.getOrgRepositories(orgName);
+      try {
+        // Get all repositories
+        const repos = await apiService.getOrgRepositories(orgName);
 
-      // Process forked repos first
-      const forks = repos.filter(repo => repo.fork === true && !repo.archived);
-      setProgress({ current: 0, total: forks.length, repoName: 'Processing forks...' });
+        // Process forked repos first
+        const forks = repos.filter(repo => repo.fork === true && !repo.archived);
+        setProgress({ current: 0, total: forks.length, repoName: 'Processing forks...' });
 
-      const forksWithDetailsPromises = forks.map(async (repo, index) => {
-        setProgress({ current: index + 1, total: forks.length, repoName: `Fork: ${repo.name}` });
+        const forksWithDetailsPromises = forks.map(async (repo, index) => {
+          setProgress({ current: index + 1, total: forks.length, repoName: `Fork: ${repo.name}` });
 
-        const [fullRepo, languages] = await Promise.all([
-          apiService.getRepository(orgName, repo.name),
-          apiService.getRepoLanguages(orgName, repo.name),
-        ]);
+          const [fullRepo, languages] = await Promise.all([
+            apiService.getRepository(orgName, repo.name),
+            apiService.getRepoLanguages(orgName, repo.name),
+          ]);
 
-        // Get top languages sorted by bytes
-        const topLanguages = Object.entries(languages || {})
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([lang]) => lang);
+          // Get top languages sorted by bytes
+          const topLanguages = Object.entries(languages || {})
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([lang]) => lang);
 
-        if (!fullRepo || !fullRepo.source) {
+          if (!fullRepo || !fullRepo.source) {
+            return {
+              name: repo.name,
+              url: repo.html_url,
+              visibility: repo.private ? 'private' : 'public',
+              description: repo.description || 'No description',
+              source: null,
+              parent: null,
+              sourceLastUpdated: null,
+              forkLastPushed: repo.pushed_at,
+              sourceStars: 0,
+              sourceWatchers: 0,
+              commitsBehind: null,
+              languages: topLanguages,
+            };
+          }
+
+          const source = fullRepo.source;
+          const sourceOwner = source.owner.login;
+
+          let commitsBehind = null;
+          try {
+            const comparison = await apiService.compareBranches(
+              orgName,
+              repo.name,
+              `${sourceOwner}:${source.default_branch}`,
+              fullRepo.default_branch,
+            );
+            if (comparison) {
+              commitsBehind = comparison.behind_by;
+            }
+          } catch (err) {
+            console.warn(`Could not compare branches for ${repo.name}:`, err);
+          }
+
           return {
             name: repo.name,
             url: repo.html_url,
             visibility: repo.private ? 'private' : 'public',
             description: repo.description || 'No description',
-            source: null,
-            parent: null,
-            sourceLastUpdated: null,
+            source: {
+              name: source.full_name,
+              url: source.html_url,
+            },
+            parent: fullRepo.parent
+              ? {
+                  name: fullRepo.parent.full_name,
+                  url: fullRepo.parent.html_url,
+                }
+              : null,
+            sourceLastUpdated: source.pushed_at,
             forkLastPushed: repo.pushed_at,
-            sourceStars: 0,
-            sourceWatchers: 0,
-            commitsBehind: null,
+            sourceStars: source.stargazers_count,
+            sourceWatchers: source.watchers_count,
+            commitsBehind: commitsBehind,
             languages: topLanguages,
           };
-        }
+        });
 
-        const source = fullRepo.source;
-        const sourceOwner = source.owner.login;
+        const forksWithDetails = await Promise.all(forksWithDetailsPromises);
+        forksWithDetails.sort((a, b) => new Date(b.forkLastPushed) - new Date(a.forkLastPushed));
 
-        let commitsBehind = null;
-        try {
-          const comparison = await apiService.compareBranches(
-            orgName,
-            repo.name,
-            `${sourceOwner}:${source.default_branch}`,
-            fullRepo.default_branch,
-          );
-          if (comparison) {
-            commitsBehind = comparison.behind_by;
+        setTotalForks(forksWithDetails.length);
+        setForkedRepos(forksWithDetails);
+
+        // Now process active (non-forked, non-archived) repos
+        const activeRepos = repos.filter(repo => !repo.archived && !repo.fork);
+        setProgress({ current: 0, total: activeRepos.length, repoName: '' });
+
+        const unprotected = [];
+        const noAdmin = [];
+        const withAlerts = [];
+
+        // Check each repo
+        for (let i = 0; i < activeRepos.length; i++) {
+          const repo = activeRepos[i];
+          setProgress({ current: i + 1, total: activeRepos.length, repoName: repo.name });
+
+          try {
+            // Fetch all data in parallel for this repo
+            const [isProtected, teams, directCollaborators, dependabotAlerts] = await Promise.all([
+              apiService
+                .isBranchProtected(orgName, repo.name, repo.default_branch)
+                .catch(() => false),
+              apiService.getRepoTeams(orgName, repo.name).catch(() => []),
+              apiService.getRepoDirectCollaborators(orgName, repo.name).catch(() => []),
+              apiService.getDependabotAlerts(orgName, repo.name, 'open').catch(() => []),
+            ]);
+
+            // Check branch protection
+            if (!isProtected) {
+              unprotected.push({
+                name: repo.name,
+                url: repo.html_url,
+                defaultBranch: repo.default_branch,
+                visibility: repo.private ? 'private' : 'public',
+                settingsUrl: `${repo.html_url}/settings/branches`,
+              });
+            }
+
+            // Check for delegated admin access
+            const adminTeams = teams.filter(team => team.permission === 'admin');
+            const adminCollaborators = directCollaborators.filter(
+              collab => collab.permissions && collab.permissions.admin === true,
+            );
+
+            const totalExplicitAdmins = adminTeams.length + adminCollaborators.length;
+
+            if (totalExplicitAdmins === 0) {
+              noAdmin.push({
+                name: repo.name,
+                url: repo.html_url,
+                collaboratorCount: directCollaborators.length,
+                visibility: repo.private ? 'private' : 'public',
+                settingsUrl: `${repo.html_url}/settings/access`,
+              });
+            }
+
+            // Check for Dependabot alerts
+            if (dependabotAlerts.length > 0) {
+              // Count by severity
+              const severityCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+              dependabotAlerts.forEach(alert => {
+                const severity =
+                  alert.security_advisory?.severity ||
+                  alert.security_vulnerability?.severity ||
+                  'low';
+                if (severity in severityCounts) {
+                  severityCounts[severity]++;
+                }
+              });
+
+              withAlerts.push({
+                name: repo.name,
+                url: repo.html_url,
+                alertsUrl: `${repo.html_url}/security/dependabot`,
+                visibility: repo.private ? 'private' : 'public',
+                totalAlerts: dependabotAlerts.length,
+                critical: severityCounts.critical,
+                high: severityCounts.high,
+                medium: severityCounts.medium,
+                low: severityCounts.low,
+              });
+            }
+          } catch (err) {
+            console.error(`Error checking repo ${repo.name}:`, err);
+            // Continue with next repo
           }
-        } catch (err) {
-          console.warn(`Could not compare branches for ${repo.name}:`, err);
         }
 
-        return {
-          name: repo.name,
-          url: repo.html_url,
-          visibility: repo.private ? 'private' : 'public',
-          description: repo.description || 'No description',
-          source: {
-            name: source.full_name,
-            url: source.html_url,
+        // Sort repos with alerts by severity (critical first, then high, etc.)
+        withAlerts.sort((a, b) => {
+          if (b.critical !== a.critical) return b.critical - a.critical;
+          if (b.high !== a.high) return b.high - a.high;
+          if (b.medium !== a.medium) return b.medium - a.medium;
+          return b.totalAlerts - a.totalAlerts;
+        });
+
+        setTotalUnprotected(unprotected.length);
+        setUnprotectedRepos(unprotected);
+        setTotalNoAdmin(noAdmin.length);
+        setNoAdminRepos(noAdmin);
+        setReposWithAlerts(withAlerts);
+        setTotalReposWithAlerts(withAlerts.length);
+        setHasLoaded(true);
+
+        // Save to cache
+        saveToCache(
+          orgName,
+          'governance-repo',
+          {
+            forkedRepos: forksWithDetails,
+            totalForks: forksWithDetails.length,
+            unprotectedRepos: unprotected,
+            noAdminRepos: noAdmin,
+            totalUnprotected: unprotected.length,
+            totalNoAdmin: noAdmin.length,
+            reposWithAlerts: withAlerts,
+            totalReposWithAlerts: withAlerts.length,
           },
-          parent: fullRepo.parent
-            ? {
-                name: fullRepo.parent.full_name,
-                url: fullRepo.parent.html_url,
-              }
-            : null,
-          sourceLastUpdated: source.pushed_at,
-          forkLastPushed: repo.pushed_at,
-          sourceStars: source.stargazers_count,
-          sourceWatchers: source.watchers_count,
-          commitsBehind: commitsBehind,
-          languages: topLanguages,
-        };
-      });
-
-      const forksWithDetails = await Promise.all(forksWithDetailsPromises);
-      forksWithDetails.sort((a, b) => new Date(b.forkLastPushed) - new Date(a.forkLastPushed));
-
-      setTotalForks(forksWithDetails.length);
-      setForkedRepos(forksWithDetails);
-
-      // Now process active (non-forked, non-archived) repos
-      const activeRepos = repos.filter(repo => !repo.archived && !repo.fork);
-      setProgress({ current: 0, total: activeRepos.length, repoName: '' });
-
-      const unprotected = [];
-      const noAdmin = [];
-      const withAlerts = [];
-
-      // Check each repo
-      for (let i = 0; i < activeRepos.length; i++) {
-        const repo = activeRepos[i];
-        setProgress({ current: i + 1, total: activeRepos.length, repoName: repo.name });
-
-        try {
-          // Fetch all data in parallel for this repo
-          const [isProtected, teams, directCollaborators, dependabotAlerts] = await Promise.all([
-            apiService
-              .isBranchProtected(orgName, repo.name, repo.default_branch)
-              .catch(() => false),
-            apiService.getRepoTeams(orgName, repo.name).catch(() => []),
-            apiService.getRepoDirectCollaborators(orgName, repo.name).catch(() => []),
-            apiService.getDependabotAlerts(orgName, repo.name, 'open').catch(() => []),
-          ]);
-
-          // Check branch protection
-          if (!isProtected) {
-            unprotected.push({
-              name: repo.name,
-              url: repo.html_url,
-              defaultBranch: repo.default_branch,
-              visibility: repo.private ? 'private' : 'public',
-              settingsUrl: `${repo.html_url}/settings/branches`,
-            });
-          }
-
-          // Check for delegated admin access
-          const adminTeams = teams.filter(team => team.permission === 'admin');
-          const adminCollaborators = directCollaborators.filter(
-            collab => collab.permissions && collab.permissions.admin === true,
-          );
-
-          const totalExplicitAdmins = adminTeams.length + adminCollaborators.length;
-
-          if (totalExplicitAdmins === 0) {
-            noAdmin.push({
-              name: repo.name,
-              url: repo.html_url,
-              collaboratorCount: directCollaborators.length,
-              visibility: repo.private ? 'private' : 'public',
-              settingsUrl: `${repo.html_url}/settings/access`,
-            });
-          }
-
-          // Check for Dependabot alerts
-          if (dependabotAlerts.length > 0) {
-            // Count by severity
-            const severityCounts = { critical: 0, high: 0, medium: 0, low: 0 };
-            dependabotAlerts.forEach(alert => {
-              const severity =
-                alert.security_advisory?.severity ||
-                alert.security_vulnerability?.severity ||
-                'low';
-              if (severity in severityCounts) {
-                severityCounts[severity]++;
-              }
-            });
-
-            withAlerts.push({
-              name: repo.name,
-              url: repo.html_url,
-              alertsUrl: `${repo.html_url}/security/dependabot`,
-              visibility: repo.private ? 'private' : 'public',
-              totalAlerts: dependabotAlerts.length,
-              critical: severityCounts.critical,
-              high: severityCounts.high,
-              medium: severityCounts.medium,
-              low: severityCounts.low,
-            });
-          }
-        } catch (err) {
-          console.error(`Error checking repo ${repo.name}:`, err);
-          // Continue with next repo
-        }
+          config.cache.ttlHours,
+        );
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-
-      // Sort repos with alerts by severity (critical first, then high, etc.)
-      withAlerts.sort((a, b) => {
-        if (b.critical !== a.critical) return b.critical - a.critical;
-        if (b.high !== a.high) return b.high - a.high;
-        if (b.medium !== a.medium) return b.medium - a.medium;
-        return b.totalAlerts - a.totalAlerts;
-      });
-
-      setTotalUnprotected(unprotected.length);
-      setUnprotectedRepos(unprotected);
-      setTotalNoAdmin(noAdmin.length);
-      setNoAdminRepos(noAdmin);
-      setReposWithAlerts(withAlerts);
-      setTotalReposWithAlerts(withAlerts.length);
-      setHasLoaded(true);
-
-      // Save to cache
-      saveToCache(
-        orgName,
-        'governance-repo',
-        {
-          forkedRepos: forksWithDetails,
-          totalForks: forksWithDetails.length,
-          unprotectedRepos: unprotected,
-          noAdminRepos: noAdmin,
-          totalUnprotected: unprotected.length,
-          totalNoAdmin: noAdmin.length,
-          reposWithAlerts: withAlerts,
-          totalReposWithAlerts: withAlerts.length,
-        },
-        config.cache.ttlHours,
-      );
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [apiService, orgName, config],
+  );
 
   useEffect(() => {
     if (isActive && !hasLoaded && apiService && orgName) {
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, hasLoaded, apiService, orgName]);
+  }, [isActive, hasLoaded, apiService, orgName, fetchData]);
 
   const formatDate = date => {
     if (!date) return 'N/A';
