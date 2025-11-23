@@ -59,26 +59,44 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
         const repos = await apiService.getOrgRepositories(orgName);
         const activeRepos = repos.filter(repo => !repo.archived && !repo.fork);
 
-        // First pass: Check for archive candidates (inactive repos)
+        // Configuration thresholds
         const inactiveMonths = config.thresholds.inactiveRepoMonths;
+        const staleDays = config.thresholds.staleBranchDays;
+        const oldPRDays = config.thresholds.oldPRDays;
+        const branchWarningThreshold = config.thresholds.branchCountWarning;
+
+        // Calculate cutoff dates
         const inactiveCutoffDate = new Date();
         inactiveCutoffDate.setMonth(inactiveCutoffDate.getMonth() - inactiveMonths);
 
-        const reposWithActivity = [];
-        setProgress({ current: 0, total: activeRepos.length, repoName: 'Checking activity...' });
+        const staleBranchCutoffDate = new Date();
+        staleBranchCutoffDate.setDate(staleBranchCutoffDate.getDate() - staleDays);
 
+        const prCutoffDate = new Date();
+        prCutoffDate.setDate(prCutoffDate.getDate() - oldPRDays);
+
+        // Result arrays
+        const reposWithActivity = [];
+        const reposWithStaleBranches = [];
+        const reposWithOldPRs = [];
+
+        setProgress({ current: 0, total: activeRepos.length, repoName: '' });
+
+        // Single pass: Check all repos for inactive, stale branches, and old PRs
         for (let i = 0; i < activeRepos.length; i++) {
           const repo = activeRepos[i];
-          setProgress({
-            current: i + 1,
-            total: activeRepos.length,
-            repoName: `Activity: ${repo.name}`,
-          });
+          setProgress({ current: i + 1, total: activeRepos.length, repoName: repo.name });
 
+          // Fetch all data for this repo in parallel
+          const [lastPR, branches, openPRs] = await Promise.all([
+            apiService.getLastPullRequest(orgName, repo.name),
+            apiService.getRepoBranches(orgName, repo.name),
+            apiService.getOpenPullRequests(orgName, repo.name),
+          ]);
+
+          // === Check for inactive repos (archive candidates) ===
           const pushedAt = new Date(repo.pushed_at);
-          const lastPR = await apiService.getLastPullRequest(orgName, repo.name);
           const lastPRDate = lastPR ? new Date(lastPR.updated_at) : null;
-
           const lastActivity = lastPRDate && lastPRDate > pushedAt ? lastPRDate : pushedAt;
           const isLastPR = lastPRDate && lastPRDate > pushedAt;
           const daysSinceActivity = Math.floor((new Date() - lastActivity) / (1000 * 60 * 60 * 24));
@@ -94,39 +112,8 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
               daysInactive: daysSinceActivity,
             });
           }
-        }
 
-        reposWithActivity.sort((a, b) => b.daysInactive - a.daysInactive);
-        setTotalInactive(reposWithActivity.length);
-        setInactiveRepos(reposWithActivity);
-
-        // Second pass: Check for stale branches and old PRs
-        setProgress({ current: 0, total: activeRepos.length, repoName: '' });
-
-        const staleDays = config.thresholds.staleBranchDays;
-        const oldPRDays = config.thresholds.oldPRDays;
-        const branchWarningThreshold = config.thresholds.branchCountWarning;
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - staleDays);
-
-        const prCutoffDate = new Date();
-        prCutoffDate.setDate(prCutoffDate.getDate() - oldPRDays);
-
-        const reposWithStaleBranches = [];
-        const reposWithOldPRs = [];
-
-        // Check each repo
-        for (let i = 0; i < activeRepos.length; i++) {
-          const repo = activeRepos[i];
-          setProgress({ current: i + 1, total: activeRepos.length, repoName: repo.name });
-
-          // Fetch branches and PRs in parallel
-          const [branches, openPRs] = await Promise.all([
-            apiService.getRepoBranches(orgName, repo.name),
-            apiService.getOpenPullRequests(orgName, repo.name),
-          ]);
-
-          // Exclude the default branch from checks
+          // === Check for stale branches ===
           const nonDefaultBranches = branches.filter(branch => branch.name !== repo.default_branch);
 
           if (nonDefaultBranches.length > branchWarningThreshold) {
@@ -152,7 +139,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             allBranchDetails.forEach(branchDetails => {
               if (branchDetails && branchDetails.commit) {
                 const lastCommitDate = new Date(branchDetails.commit.commit.author.date);
-                if (lastCommitDate < cutoffDate) {
+                if (lastCommitDate < staleBranchCutoffDate) {
                   staleBranchCount++;
                   // Prefer GitHub login (unique) over git commit author name (can vary)
                   const authorIdentifier =
@@ -176,7 +163,7 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
             }
           }
 
-          // Process open PRs (already fetched in parallel above)
+          // === Check for old PRs ===
           let oldPRCount = 0;
           const oldestPR = { daysOpen: 0, number: null, url: null };
 
@@ -205,24 +192,28 @@ function CleanupNeeded({ apiService, orgName, isActive }) {
           }
         }
 
-        // Sort stale branch repos by count (descending)
+        // Sort and set inactive repos
+        reposWithActivity.sort((a, b) => b.daysInactive - a.daysInactive);
+        setTotalInactive(reposWithActivity.length);
+        setInactiveRepos(reposWithActivity);
+
+        // Sort and set stale branch repos
         reposWithStaleBranches.sort((a, b) => {
           if (a.isWarning && !b.isWarning) return -1;
           if (!a.isWarning && b.isWarning) return 1;
           if (a.isWarning && b.isWarning) return b.branchCount - a.branchCount;
           return b.staleBranchCount - a.staleBranchCount;
         });
-
         setTotalStaleBranchRepos(reposWithStaleBranches.length);
         setStaleBranches(reposWithStaleBranches);
 
-        // Sort repos with old PRs by oldest PR days (descending)
+        // Sort and set old PRs
         reposWithOldPRs.sort((a, b) => b.oldestPR.daysOpen - a.oldestPR.daysOpen);
         const totalOldPRCount = reposWithOldPRs.reduce((sum, repo) => sum + repo.oldPRCount, 0);
-
         setTotalOldPRRepos(reposWithOldPRs.length);
         setTotalOldPRs(totalOldPRCount);
         setOldPRs(reposWithOldPRs);
+
         setHasLoaded(true);
 
         // Save to cache

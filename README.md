@@ -26,6 +26,15 @@ npm run test:run # Run tests once
 
 User-adjustable settings (thresholds, cache TTL, display limits) are in `src/utils/config.ts` with defaults in `src/config.json`. Users can modify these via the Settings tab.
 
+## Design
+
+- Each tab manages its own data fetching and state - no global store
+- Tabs lazy-load on first visit via `isActive` prop; `hasLoaded` prevents re-fetching on tab switches
+- Caching: localStorage with TTL, keys follow `github-org-analyser-{org}-{dataType}` pattern
+- Each tab's refresh button bypasses cache via `skipCache=true`
+- Token: sessionStorage (cleared on browser close); theme: localStorage (persists)
+- Single `GitHubApiService` instance created in App.tsx, passed to all tabs
+
 ## Known Issues
 
 ### Backlog
