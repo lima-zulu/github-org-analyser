@@ -259,7 +259,7 @@ function Home({ apiService, orgName, isActive }) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
                 <PeopleIcon fontSize="small" />
-                <Typography variant="body2">{memberCount} members</Typography>
+                {memberCount} members
               </Link>
               <Link
                 href={`https://github.com/orgs/${orgName}/followers`}
@@ -268,7 +268,7 @@ function Home({ apiService, orgName, isActive }) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
               >
                 <PersonAddIcon fontSize="small" />
-                <Typography variant="body2">{orgData.followers} followers</Typography>
+                {orgData.followers} followers
               </Link>
               <Link
                 href={orgData.html_url}
