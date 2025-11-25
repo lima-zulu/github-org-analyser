@@ -114,6 +114,33 @@ class GitHubApiService {
   }
 
   /**
+   * Get pending invitations for an organization
+   */
+  async getOrgInvitations(org: string) {
+    let allInvitations = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      try {
+        const invitations = await this.get(`/orgs/${org}/invitations`, {
+          per_page: 100,
+          page,
+        });
+
+        allInvitations = allInvitations.concat(invitations);
+        hasMore = invitations.length === 100;
+        page++;
+      } catch (error) {
+        console.warn(`Failed to get invitations for org ${org}:`, error);
+        hasMore = false;
+      }
+    }
+
+    return allInvitations;
+  }
+
+  /**
    * Get the most recent pull request for a repository
    */
   async getLastPullRequest(owner, repo) {
