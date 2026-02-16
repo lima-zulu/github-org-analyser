@@ -34,10 +34,12 @@ function Costs({ apiService, orgName, isActive }) {
   } | null>(null);
   const [pendingInvitations, setPendingInvitations] = useState<number>(0);
   const [memberCount, setMemberCount] = useState<number>(0);
+  const [outsideCollaboratorCount, setOutsideCollaboratorCount] = useState<number>(0);
   const [actionsStorage, setActionsStorage] = useState<{ gross: number; included: number } | null>(
     null,
   );
   const [copilotCost, setCopilotCost] = useState<number>(0);
+  const [spendByProduct, setSpendByProduct] = useState<Record<string, number>>({});
 
   const fetchData = useCallback(
     async (skipCache = false) => {
@@ -47,7 +49,12 @@ function Costs({ apiService, orgName, isActive }) {
       if (!skipCache) {
         const cachedData = loadFromCache(orgName, 'costs');
         // Validate cache has all expected fields (memberCount/actionsStorage were added later)
-        if (cachedData && 'usageSummary' in cachedData && 'memberCount' in cachedData) {
+        if (
+          cachedData &&
+          'usageSummary' in cachedData &&
+          'memberCount' in cachedData &&
+          'outsideCollaboratorCount' in cachedData
+        ) {
           setOrgData(cachedData.orgData);
           setCopilotBilling(cachedData.copilotBilling);
           setBudgets(cachedData.budgets || []);
@@ -55,8 +62,10 @@ function Costs({ apiService, orgName, isActive }) {
           setUsageSummary(cachedData.usageSummary);
           setPendingInvitations(cachedData.pendingInvitations || 0);
           setMemberCount(cachedData.memberCount || 0);
+          setOutsideCollaboratorCount(cachedData.outsideCollaboratorCount || 0);
           setActionsStorage(cachedData.actionsStorage || null);
           setCopilotCost(cachedData.copilotCost || 0);
+          setSpendByProduct(cachedData.spendByProduct || {});
           setHasLoaded(true);
           return;
         }
@@ -84,6 +93,7 @@ function Costs({ apiService, orgName, isActive }) {
           previousMonthUsage,
           invitations,
           members,
+          outsideCollaborators,
         ] = await Promise.all([
           apiService.getOrganization(orgName),
           apiService.getCopilotBilling(orgName),
@@ -92,17 +102,22 @@ function Costs({ apiService, orgName, isActive }) {
           apiService.getBillingUsageDetails(orgName, { year: prevYear, month: prevMonth }),
           apiService.getOrgInvitations(orgName),
           apiService.getOrgMembers(orgName),
+          apiService.getOutsideCollaborators(orgName),
         ]);
 
         const budgetsData = Array.isArray(budgetsList) ? budgetsList : [];
         const invitationsCount = Array.isArray(invitations) ? invitations.length : 0;
         const membersCount = Array.isArray(members) ? members.length : 0;
+        const outsideCollaboratorsCount = Array.isArray(outsideCollaborators)
+          ? outsideCollaborators.length
+          : 0;
 
         setOrgData(org);
         setCopilotBilling(copilot);
         setBudgets(budgetsData);
         setPendingInvitations(invitationsCount);
         setMemberCount(membersCount);
+        setOutsideCollaboratorCount(outsideCollaboratorsCount);
 
         // Helper to aggregate usage items into totals
         const aggregateUsage = (
@@ -140,6 +155,7 @@ function Costs({ apiService, orgName, isActive }) {
         let actionsData = null;
         let storageData = null;
         let copilotTotalCost = 0;
+        const spendByProductData: Record<string, number> = {};
         if (currentMonthUsage && Array.isArray(currentMonthUsage.usageItems)) {
           // Aggregate Actions minutes and Copilot costs
           let totalMinutes = 0;
@@ -152,6 +168,10 @@ function Costs({ apiService, orgName, isActive }) {
           currentMonthUsage.usageItems.forEach(item => {
             const product = (item.product || '').toLowerCase();
             const sku = (item.sku || '').toLowerCase();
+
+            // Aggregate net spend per product for budget display
+            spendByProductData[product] =
+              (spendByProductData[product] || 0) + (item.netAmount || 0);
 
             if (product === 'actions') {
               if (item.unitType === 'Minutes') {
@@ -188,6 +208,7 @@ function Costs({ apiService, orgName, isActive }) {
         setActionsBilling(actionsData);
         setActionsStorage(storageData);
         setCopilotCost(copilotTotalCost);
+        setSpendByProduct(spendByProductData);
         setHasLoaded(true);
 
         // Save to cache
@@ -202,8 +223,10 @@ function Costs({ apiService, orgName, isActive }) {
             usageSummary: summaryData,
             pendingInvitations: invitationsCount,
             memberCount: membersCount,
+            outsideCollaboratorCount: outsideCollaboratorsCount,
             actionsStorage: storageData,
             copilotCost: copilotTotalCost,
+            spendByProduct: spendByProductData,
           },
           config.cache.ttlHours,
         );
@@ -270,12 +293,15 @@ function Costs({ apiService, orgName, isActive }) {
     );
   }
 
-  // Calculate seat usage - use actual member count, not filled_seats (which includes pending invitations)
+  // Calculate seat usage - members + outside collaborators both consume seats
   const orgSeats = orgData?.plan
     ? {
         total: orgData.plan.seats || 0,
-        used: memberCount,
-        unused: Math.max(0, (orgData.plan.seats || 0) - memberCount - pendingInvitations),
+        used: memberCount + outsideCollaboratorCount,
+        unused: Math.max(
+          0,
+          (orgData.plan.seats || 0) - memberCount - outsideCollaboratorCount - pendingInvitations,
+        ),
       }
     : null;
 
@@ -430,22 +456,33 @@ function Costs({ apiService, orgName, isActive }) {
                   Organisation Seats
                 </Typography>
                 {orgSeats ? (
-                  <Grid container spacing={2}>
-                    <Grid size={3}>
+                  <Grid container spacing={2} columns={5}>
+                    <Grid size={1}>
                       <Typography variant="body2" color="text.secondary">
                         Total
                       </Typography>
                       <Typography variant="h5">{orgSeats.total}</Typography>
                     </Grid>
-                    <Grid size={3}>
+                    <Grid size={1}>
                       <Typography variant="body2" color="text.secondary">
-                        Used
+                        Members
                       </Typography>
                       <Typography variant="h5" color="success.main">
-                        {orgSeats.used}
+                        {memberCount}
                       </Typography>
                     </Grid>
-                    <Grid size={3}>
+                    <Grid size={1}>
+                      <Typography variant="body2" color="text.secondary">
+                        Outside
+                      </Typography>
+                      <Typography
+                        variant="h5"
+                        color={outsideCollaboratorCount > 0 ? 'info.main' : 'text.primary'}
+                      >
+                        {outsideCollaboratorCount}
+                      </Typography>
+                    </Grid>
+                    <Grid size={1}>
                       <Typography variant="body2" color="text.secondary">
                         Unused
                       </Typography>
@@ -456,7 +493,7 @@ function Costs({ apiService, orgName, isActive }) {
                         {orgSeats.unused}
                       </Typography>
                     </Grid>
-                    <Grid size={3}>
+                    <Grid size={1}>
                       <Typography variant="body2" color="text.secondary">
                         Invitations
                       </Typography>
@@ -648,7 +685,19 @@ function Costs({ apiService, orgName, isActive }) {
             {
               field: 'amount_spent',
               headerName: 'Spent',
-              renderCell: row => formatCurrency(row.amount_spent ?? 0),
+              renderCell: row => {
+                const sku = (row.budget_product_sku || '').toLowerCase();
+                const spent = spendByProduct[sku] ?? 0;
+                return (
+                  <Typography
+                    variant="body2"
+                    component="span"
+                    color={spent > 0 ? 'warning.main' : 'inherit'}
+                  >
+                    {formatCurrency(spent)}
+                  </Typography>
+                );
+              },
             },
             {
               field: 'budget_amount',
